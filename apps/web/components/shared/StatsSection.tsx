@@ -3,31 +3,42 @@ import { motion } from 'framer-motion'
 import { Users, BookOpen, Award, TrendingUp, Star, Globe, Video, Zap } from 'lucide-react'
 
 const stats = [
-  { icon: Users, value: '50,000+', label: 'Active Students', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20' },
-  { icon: Video, value: '1,200+', label: 'Live Sessions Done', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-  { icon: BookOpen, value: '500+', label: 'Expert Courses', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  { icon: Award, value: '20,000+', label: 'Certificates Issued', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-  { icon: TrendingUp, value: '₹2Cr+', label: 'Affiliate Earnings', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
-  { icon: Star, value: '4.9/5', label: 'Platform Rating', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-  { icon: Globe, value: '50+', label: 'Cities Covered', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-  { icon: Zap, value: '98%', label: 'Completion Rate', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-500/20' },
+  { icon: Users,     value: '50,000+', label: 'Active Students',    color: 'text-violet-400', glow: 'rgba(124,58,237,0.18)' },
+  { icon: Video,     value: '1,200+',  label: 'Live Sessions Done', color: 'text-red-400',    glow: 'rgba(239,68,68,0.15)'  },
+  { icon: BookOpen,  value: '500+',    label: 'Expert Courses',     color: 'text-blue-400',   glow: 'rgba(59,130,246,0.15)' },
+  { icon: Award,     value: '20,000+', label: 'Certificates Issued',color: 'text-amber-400',  glow: 'rgba(245,158,11,0.15)' },
+  { icon: TrendingUp,value: '₹2Cr+',   label: 'Affiliate Earnings', color: 'text-green-400',  glow: 'rgba(34,197,94,0.15)'  },
+  { icon: Star,      value: '4.9/5',   label: 'Platform Rating',    color: 'text-orange-400', glow: 'rgba(249,115,22,0.15)' },
+  { icon: Globe,     value: '50+',     label: 'Cities Covered',     color: 'text-cyan-400',   glow: 'rgba(6,182,212,0.15)'  },
+  { icon: Zap,       value: '98%',     label: 'Completion Rate',    color: 'text-fuchsia-400',glow: 'rgba(217,70,239,0.15)' },
 ]
 
 export default function StatsSection() {
   return (
-    <section className="py-16 relative overflow-hidden">
-      {/* Background gradient line */}
-      <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent -translate-y-1/2" />
+    <section className="py-14 relative overflow-hidden">
+      {/* Subtle separator line */}
+      <div className="absolute inset-x-0 top-0 h-px"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.2), transparent)' }} />
+      <div className="absolute inset-x-0 bottom-0 h-px"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.2), transparent)' }} />
 
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {stats.map((s, i) => (
-            <motion.div key={i} initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }}
-              transition={{ delay:i*0.07 }} viewport={{ once:true }}
-              className={`${s.bg} border ${s.border} rounded-2xl p-4 text-center hover:scale-105 transition-transform`}>
-              <s.icon className={`w-6 h-6 ${s.color} mx-auto mb-2`} />
-              <div className="text-xl font-black text-white">{s.value}</div>
-              <div className="text-[11px] text-gray-500 leading-tight">{s.label}</div>
+            <motion.div key={i}
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06 }}
+              viewport={{ once: true }}
+              whileHover={{ scale: 1.06, y: -2 }}
+              className="bento p-4 text-center cursor-default group transition-all duration-300"
+            >
+              <div className="w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center transition-all duration-300 group-hover:scale-110"
+                style={{ background: s.glow }}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <div className="text-lg font-black text-white leading-tight">{s.value}</div>
+              <div className="text-[11px] text-gray-500 mt-0.5 leading-tight">{s.label}</div>
             </motion.div>
           ))}
         </div>
