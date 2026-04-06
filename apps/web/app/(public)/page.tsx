@@ -1,6 +1,7 @@
 import Navbar from '@/components/layout/Navbar'
 import HeroSection from '@/components/shared/HeroSection'
 import StatsSection from '@/components/shared/StatsSection'
+import LiveClassesSection from '@/components/shared/LiveClassesSection'
 import FeaturedCourses from '@/components/shared/FeaturedCourses'
 import HowItWorks from '@/components/shared/HowItWorks'
 import TestimonialsSection from '@/components/shared/TestimonialsSection'
@@ -14,6 +15,7 @@ export default function HomePage() {
       <Navbar />
       <HeroSection />
       <StatsSection />
+      <LiveClassesSection />
       <FeaturedCourses />
       <HowItWorks />
       <TestimonialsSection />
