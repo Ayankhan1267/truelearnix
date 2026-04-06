@@ -33,7 +33,7 @@ router.post('/:id/submit', protect, authorize('student'), uploadToS3.single('fil
     const existing = assignment.submissions.findIndex(s => s.student.toString() === req.user._id.toString());
     const submission = { student: req.user._id, fileUrl, fileName: req.file?.originalname || '', submittedAt: new Date(), status: 'pending' as const };
 
-    if (existing >= 0) assignment.submissions[existing] = { ...assignment.submissions[existing].toObject(), ...submission };
+    if (existing >= 0) assignment.submissions[existing] = { ...assignment.submissions[existing].toObject?.() || assignment.submissions[existing], ...submission } as any;
     else assignment.submissions.push(submission);
 
     await assignment.save();
