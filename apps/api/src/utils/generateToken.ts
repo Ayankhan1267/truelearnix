@@ -1,15 +1,13 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 export const generateAccessToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET as string, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  });
+  const options: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as SignOptions['expiresIn'] };
+  return jwt.sign({ id }, process.env.JWT_SECRET as string, options);
 };
 
 export const generateRefreshToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET as string, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d'
-  });
+  const options: SignOptions = { expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '30d') as SignOptions['expiresIn'] };
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET as string, options);
 };
 
 export const generateOTP = (): string => {
