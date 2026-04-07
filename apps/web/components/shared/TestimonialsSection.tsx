@@ -97,7 +97,7 @@ export default function TestimonialsSection() {
       {/* Bottom trust stats */}
       <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
         className="max-w-2xl mx-auto mt-14 px-4">
-        <div className="rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-around gap-6 text-center"
+        <div className="rounded-2xl p-5 sm:p-6 grid grid-cols-3 sm:flex sm:flex-row items-center justify-around gap-4 sm:gap-6 text-center"
           style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)' }}>
           {[
             { val: '50,000+', label: 'Happy Students' },

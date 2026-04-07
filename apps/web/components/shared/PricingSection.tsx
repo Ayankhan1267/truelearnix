@@ -48,7 +48,7 @@ const plans = [
   },
 ]
 
-function PlanCard({ plan, i, mobile = false }: { plan: typeof plans[0]; i: number; mobile?: boolean }) {
+function PlanCard({ plan, i }: { plan: typeof plans[0]; i: number }) {
   const PlanIcon = plan.icon
   return (
     <motion.div
@@ -56,9 +56,9 @@ function PlanCard({ plan, i, mobile = false }: { plan: typeof plans[0]; i: numbe
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ delay: i * 0.1 }}
       viewport={{ once: true }}
-      className={`relative rounded-3xl p-7 transition-all duration-300 flex-shrink-0 ${
-        mobile ? 'w-[280px]' : ''
-      } ${plan.highlight ? 'md:-translate-y-3 md:scale-[1.03]' : 'hover:border-violet-500/25'}`}
+      className={`relative rounded-3xl p-6 sm:p-7 transition-all duration-300 ${
+        plan.highlight ? 'md:-translate-y-3 md:scale-[1.03]' : 'hover:border-violet-500/25'
+      }`}
       style={plan.highlight ? {
         background: 'linear-gradient(160deg, rgba(124,58,237,0.2), rgba(79,70,229,0.12), rgba(124,58,237,0.08))',
         border: '1px solid rgba(124,58,237,0.45)',
@@ -157,9 +157,9 @@ export default function PricingSection() {
           {plans.map((plan, i) => <PlanCard key={i} plan={plan} i={i} />)}
         </div>
 
-        {/* Mobile — horizontal scroll */}
-        <div className="md:hidden scroll-track pb-4 px-1">
-          {plans.map((plan, i) => <PlanCard key={i} plan={plan} i={i} mobile />)}
+        {/* Mobile — stacked cards */}
+        <div className="md:hidden flex flex-col gap-4">
+          {plans.map((plan, i) => <PlanCard key={i} plan={plan} i={i} />)}
         </div>
 
         {/* Bottom note */}

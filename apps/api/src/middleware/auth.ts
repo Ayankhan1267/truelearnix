@@ -24,8 +24,15 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!roles.includes(req.user?.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: `Access denied. Required: ${roles.join(', ')}` });
     }
     next();
   };
+};
+
+export const requireAffiliate = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user?.isAffiliate) {
+    return res.status(403).json({ success: false, message: 'Affiliate panel locked. Purchase a package to unlock.' });
+  }
+  next();
 };

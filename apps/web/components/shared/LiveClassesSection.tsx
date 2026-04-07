@@ -93,12 +93,12 @@ export default function LiveClassesSection() {
           </div>
 
           {/* Highlights grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
             {highlights.map((h, i) => (
               <motion.div key={i}
                 initial={{ opacity:0, scale:0.93 }} whileInView={{ opacity:1, scale:1 }}
                 transition={{ delay:i*0.09 }} viewport={{ once:true }}
-                className="rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1"
+                className="rounded-2xl p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1"
                 style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)' }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
                   style={{ background: h.bg }}>

@@ -29,7 +29,7 @@ export default function CTASection() {
               </p>
             </div>
 
-            <div className="p-10 md:p-16 text-center">
+            <div className="p-6 sm:p-10 md:p-16 text-center">
               {/* Feature pills */}
               <div className="flex items-center justify-center gap-4 mb-10 flex-wrap">
                 {[
@@ -47,25 +47,25 @@ export default function CTASection() {
               </div>
 
               {/* Headline */}
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-5 leading-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-5 leading-tight">
                 Ready to{' '}
                 <span className="gradient-shift-text">Transform</span>
                 <br />
                 Your Career?
               </h2>
 
-              <p className="text-gray-400 text-lg mb-12 max-w-xl mx-auto leading-relaxed">
+              <p className="text-gray-400 text-base sm:text-lg mb-8 sm:mb-12 max-w-xl mx-auto leading-relaxed">
                 Join 50,000+ learners. Start with free courses, attend live classes,
                 earn certificates, and grow your income — all in one platform.
               </p>
 
               {/* CTA buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-                <Link href="/register" className="btn-primary text-lg px-12 py-4 group">
+              <div className="flex flex-col xs:flex-row gap-3 sm:gap-4 justify-center mb-8 sm:mb-10">
+                <Link href="/register" className="btn-primary text-base sm:text-lg px-8 sm:px-12 py-3.5 sm:py-4 group w-full xs:w-auto">
                   Start Learning Free
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link href="/courses" className="btn-outline text-base px-10 py-4">
+                <Link href="/courses" className="btn-outline text-sm sm:text-base px-6 sm:px-10 py-3.5 sm:py-4 w-full xs:w-auto">
                   Browse Courses
                 </Link>
               </div>

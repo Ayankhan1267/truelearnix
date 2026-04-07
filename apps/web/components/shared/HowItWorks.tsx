@@ -24,7 +24,7 @@ export default function HowItWorks() {
             SIMPLE PROCESS
           </motion.div>
           <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight">
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight">
             From Zero to{' '}
             <span className="gradient-text">Certified Pro</span>
           </motion.h2>

@@ -23,28 +23,47 @@ import notificationRoutes from './routes/notifications';
 import adminRoutes from './routes/admin';
 import assignmentRoutes from './routes/assignments';
 import uploadRoutes from './routes/upload';
+import packageRoutes from './routes/packages';
+import crmRoutes from './routes/crm';
+import blogRoutes from './routes/blog';
+import analyticsRoutes from './routes/analytics';
+import communityRoutes from './routes/community';
+import couponRoutes from './routes/coupons';
+import taskRoutes from './routes/tasks';
+import materialRoutes from './routes/materials';
+import goalRoutes from './routes/goals';
+import reminderRoutes from './routes/reminders';
+import projectRoutes from './routes/projects';
+import freelanceRoutes from './routes/freelance';
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
-// Socket.io
+const allowedOrigins = [
+  process.env.WEB_URL || 'https://peptly.in',
+  process.env.ADMIN_URL || 'https://admin.peptly.in',
+  'http://localhost:3000',
+  'http://localhost:3003',
+];
+
 export const io = new Server(server, {
-  cors: { origin: [process.env.WEB_URL!, process.env.ADMIN_URL!], credentials: true }
+  cors: { origin: allowedOrigins, credentials: true }
 });
 
-// Middleware
 app.use(helmet());
-app.use(cors({ origin: [process.env.WEB_URL!, process.env.ADMIN_URL!], credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 app.use('/api/', limiter);
 
-// Routes
+const strictLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+app.use('/api/auth/', strictLimiter);
+
+// Core routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
@@ -59,13 +78,24 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/upload', uploadRoutes);
 
-// Health check
-app.get('/health', (_, res) => res.json({ status: 'ok', service: 'TruLearnix API' }));
+// New routes
+app.use('/api/packages', packageRoutes);
+app.use('/api/crm', crmRoutes);
+app.use('/api/blog', blogRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/community', communityRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/materials', materialRoutes);
+app.use('/api/goals', goalRoutes);
+app.use('/api/reminders', reminderRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/freelance', freelanceRoutes);
 
-// 404 handler
+// Health
+app.get('/health', (_, res) => res.json({ status: 'ok', service: 'TureLearnix API', version: '2.1' }));
+
 app.use((_, res) => res.status(404).json({ success: false, message: 'Route not found' }));
-
-// Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);
   res.status(err.status || 500).json({ success: false, message: err.message || 'Internal server error' });
@@ -77,7 +107,7 @@ const start = async () => {
   await connectDB();
   await connectRedis();
   initSocketHandlers(io);
-  server.listen(PORT, () => console.log(`TruLearnix API running on port ${PORT}`));
+  server.listen(PORT, () => console.log(`TureLearnix API v2.1 running on port ${PORT}`));
 };
 
 start();

@@ -23,7 +23,7 @@ export default function StatsSection() {
         style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.2), transparent)' }} />
 
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
           {stats.map((s, i) => (
             <motion.div key={i}
               initial={{ opacity: 0, y: 18 }}

@@ -61,6 +61,8 @@ export const courseAPI = {
   myMentorCourses: () => api.get('/courses/my-courses'),
   markLesson: (id: string, lessonId: string) => api.post(`/courses/${id}/progress`, { lessonId }),
   addReview: (id: string, data: any) => api.post(`/courses/${id}/review`, data),
+  enrolled: () => api.get('/users/enrolled-courses'),
+  assignments: (courseId: string) => api.get(`/assignments/course/${courseId}`),
 };
 
 // Payments
@@ -112,10 +114,6 @@ export const walletAPI = {
 };
 
 // Affiliate
-export const affiliateAPI = {
-  stats: () => api.get('/affiliate/stats'),
-  referrals: () => api.get('/affiliate/referrals'),
-};
 
 // Admin
 export const adminAPI = {
@@ -128,3 +126,89 @@ export const adminAPI = {
   tickets: (params?: any) => api.get('/admin/tickets', { params }),
   updateTicket: (id: string, data: any) => api.patch(`/admin/tickets/${id}`, data),
 };
+
+// Packages
+export const packageAPI = {
+  getAll: () => api.get('/packages'),
+  getMatrix: () => api.get('/packages/commission-matrix'),
+  getMy: () => api.get('/packages/my'),
+  createOrder: (data: any) => api.post('/packages/order', data),
+  verify: (data: any) => api.post('/packages/verify', data),
+};
+
+// CRM
+export const crmAPI = {
+  createLead: (data: any) => api.post('/crm/leads', data),
+  getLeads: (params?: any) => api.get('/crm/leads', { params }),
+  getLead: (id: string) => api.get(`/crm/leads/${id}`),
+  updateLead: (id: string, data: any) => api.patch(`/crm/leads/${id}`, data),
+  stats: () => api.get('/crm/stats'),
+};
+
+// Blog
+export const blogAPI = {
+  getAll: (params?: any) => api.get('/blog', { params }),
+  getBySlug: (slug: string) => api.get(`/blog/${slug}`),
+};
+
+// Analytics
+export const analyticsAPI = {
+  dashboard: () => api.get('/analytics/dashboard'),
+  revenue: (period?: string) => api.get('/analytics/revenue', { params: { period } }),
+  unitEconomics: () => api.get('/analytics/unit-economics'),
+  users: (period?: string) => api.get('/analytics/users', { params: { period } }),
+};
+
+// Affiliate (updated)
+export const affiliateAPI = {
+  stats: () => api.get('/affiliate/stats'),
+  referrals: () => api.get('/affiliate/referrals'),
+  commissions: (params?: any) => api.get('/affiliate/commissions', { params }),
+  withdraw: (data: any) => api.post('/affiliate/withdraw', data),
+  withdrawals: () => api.get('/affiliate/withdrawals'),
+  leaderboard: () => api.get('/affiliate/leaderboard'),
+};
+
+// Community
+export const communityAPI = {
+  posts: (params?: any) => api.get('/community/posts', { params }),
+  createPost: (data: any) => api.post('/community/posts', data),
+  like: (id: string) => api.post(`/community/posts/${id}/like`),
+  comment: (id: string, content: string) => api.post(`/community/posts/${id}/comment`, { content }),
+  deletePost: (id: string) => api.delete(`/community/posts/${id}`),
+};
+
+// AI Coach
+export const aiCoachAPI = {
+  chat: (message: string, context?: string) => api.post('/users/ai-coach', { message, context }),
+};
+
+// Mentor
+export const mentorAPI = {
+  myClasses: () => api.get('/classes/my'),
+  myStudents: () => api.get('/courses/my-students'),
+  addLesson: (courseId: string, data: any) => api.post(`/courses/${courseId}/lessons`, data),
+  deleteLesson: (courseId: string, lessonId: string) => api.delete(`/courses/${courseId}/lessons/${lessonId}`),
+  myQuizzes: () => api.get('/quizzes/my'),
+  earnings: () => api.get('/wallet'),
+};
+
+// Projects
+export const projectAPI = {
+  all: (params?: any) => api.get('/projects', { params }),
+  my: () => api.get('/projects/my'),
+  create: (data: any) => api.post('/projects', data),
+  like: (id: string) => api.post(`/projects/${id}/like`),
+  update: (id: string, data: any) => api.patch(`/projects/${id}`, data),
+  delete: (id: string) => api.delete(`/projects/${id}`),
+};
+
+// Freelance
+export const freelanceAPI = {
+  all: (params?: any) => api.get('/freelance', { params }),
+  my: () => api.get('/freelance/my'),
+  create: (data: any) => api.post('/freelance', data),
+  apply: (id: string) => api.post(`/freelance/${id}/apply`),
+  update: (id: string, data: any) => api.patch(`/freelance/${id}`, data),
+};
+

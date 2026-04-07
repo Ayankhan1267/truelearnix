@@ -17,17 +17,17 @@ export default function Footer() {
             <p className="text-gray-500 text-sm">Courses, tips & affiliate opportunities delivered to your inbox</p>
           </div>
           <div className="flex gap-2 w-full md:w-auto">
-            <input type="email" placeholder="Enter your email" className="input max-w-xs flex-1" />
-            <button className="btn-primary px-6 whitespace-nowrap text-sm">Subscribe</button>
+            <input type="email" placeholder="Enter your email" className="input flex-1 md:max-w-xs" />
+            <button className="btn-primary px-4 sm:px-6 whitespace-nowrap text-sm flex-shrink-0">Subscribe</button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-10 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-8 md:gap-10 mb-12">
 
           {/* Brand */}
-          <div className="col-span-2">
+          <div className="col-span-2 sm:col-span-4 md:col-span-2">
             <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
               <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/45 transition-all">
                 <BookOpen className="w-4 h-4 text-white" />
@@ -55,7 +55,7 @@ export default function Footer() {
           </div>
 
           {/* Platform */}
-          <div>
+          <div className="col-span-1">
             <h4 className="font-black text-white mb-4 text-sm uppercase tracking-wider">Platform</h4>
             <ul className="space-y-2.5">
               {platformLinks.map(l => (
@@ -67,7 +67,7 @@ export default function Footer() {
           </div>
 
           {/* Company */}
-          <div>
+          <div className="col-span-1">
             <h4 className="font-black text-white mb-4 text-sm uppercase tracking-wider">Company</h4>
             <ul className="space-y-2.5">
               {companyLinks.map(l => (
@@ -79,7 +79,7 @@ export default function Footer() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div className="col-span-2 sm:col-span-4 md:col-span-1">
             <h4 className="font-black text-white mb-4 text-sm uppercase tracking-wider">Contact</h4>
             <ul className="space-y-3">
               <li className="flex items-center gap-2.5 text-sm text-gray-500">

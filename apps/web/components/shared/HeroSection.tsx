@@ -1,7 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Play, Star, Users, Award, BookOpen, Video, Zap, TrendingUp, CheckCircle2, ArrowRight, Sparkles, Flame } from 'lucide-react'
+import { Play, Star, Users, Award, BookOpen, Video, Zap, TrendingUp, CheckCircle2, ArrowRight, Sparkles, Flame, Shield } from 'lucide-react'
 
 const features = [
   'Live Interactive Classes Daily',
@@ -23,7 +23,7 @@ export default function HeroSection() {
   const ticker = [...tickerItems, ...tickerItems]
 
   return (
-    <section className="hero-bg noise relative min-h-screen flex flex-col" style={{ background: '#04050a', overflow:'hidden', maxWidth:'100vw' }}>
+    <section className="hero-bg noise relative min-h-screen flex flex-col" style={{ background: '#04050a', overflow:'hidden', width:'100%', maxWidth:'100vw' }}>
 
       {/* Moving animated orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -70,7 +70,7 @@ export default function HeroSection() {
               {/* Main headline */}
               <motion.div initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
                 <h1 className="font-black leading-[1.04] tracking-tight mb-6"
-                  style={{ fontSize: 'clamp(2.8rem, 7vw, 5.5rem)' }}>
+                  style={{ fontSize: 'clamp(2.2rem, 7vw, 5.5rem)' }}>
                   <span className="text-white">India's </span>
                   <span className="gradient-shift-text">#1 Live</span>
                   <br />
@@ -88,7 +88,7 @@ export default function HeroSection() {
 
               {/* Feature checklist */}
               <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-9">
+                className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 mb-9">
                 {features.map((f, i) => (
                   <div key={i} className="flex items-center gap-2.5 text-sm text-gray-300">
                     <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
@@ -131,6 +131,69 @@ export default function HeroSection() {
                     <span className="text-amber-400 font-black text-sm ml-1">4.9</span>
                   </div>
                   <p className="text-gray-500 text-xs mt-0.5">Trusted by 50,000+ learners across India</p>
+                </div>
+              </motion.div>
+
+              {/* Mobile-only hero visual — hidden on lg (full card shown on right) */}
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.54, duration: 0.6, ease: [0.23,1,0.32,1] }}
+                className="lg:hidden mt-8 rounded-2xl overflow-hidden"
+                style={{ background: 'linear-gradient(160deg, #0d1020, #0a0c18)', border: '1px solid rgba(124,58,237,0.28)', boxShadow: '0 8px 40px rgba(124,58,237,0.12)' }}
+              >
+                {/* Live header */}
+                <div className="flex items-center justify-between px-4 py-3"
+                  style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.18), rgba(79,70,229,0.12))' }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'rgba(124,58,237,0.25)' }}>
+                      <Video className="w-4 h-4 text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="text-white font-black text-xs">Full Stack Dev — Batch 12</p>
+                      <p className="text-gray-500 text-[10px]">with Mentor Aryan Kapoor</p>
+                    </div>
+                  </div>
+                  <span className="live-badge text-[10px] px-2 py-0.5 flex-shrink-0">
+                    <span className="w-1.5 h-1.5 bg-red-400 rounded-full live-dot" />LIVE
+                  </span>
+                </div>
+                {/* Video area mini */}
+                <div className="relative flex items-center justify-center py-6 px-4"
+                  style={{ background: 'linear-gradient(135deg, #0d1120, #080c18)' }}>
+                  <div className="absolute inset-0 opacity-15"
+                    style={{ backgroundImage:'linear-gradient(rgba(99,102,241,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.5) 1px,transparent 1px)', backgroundSize:'24px 24px' }} />
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background:'rgba(124,58,237,0.3)', border:'1.5px solid rgba(124,58,237,0.5)', boxShadow:'0 0 40px rgba(124,58,237,0.4)' }}>
+                      <Play className="w-7 h-7 text-white ml-1" />
+                    </div>
+                    <div>
+                      <p className="text-white font-black text-sm">React Hooks Deep Dive</p>
+                      <p className="text-gray-500 text-xs">Session 8 / 24</p>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Users className="w-3 h-3 text-violet-400" />
+                        <span className="text-gray-400 text-xs font-bold">247 watching</span>
+                        <span className="text-gray-600">•</span>
+                        <Flame className="w-3 h-3 text-orange-400" />
+                        <span className="text-gray-400 text-xs">Trending</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Mini stats strip */}
+                <div className="grid grid-cols-3 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  {[
+                    { val: '₹15K', label: 'Avg. Earned', color: 'text-green-400' },
+                    { val: '4.9★', label: 'Rating', color: 'text-amber-400' },
+                    { val: '20K+', label: 'Certified', color: 'text-violet-400' },
+                  ].map((s, i) => (
+                    <div key={i} className="py-3" style={{ borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                      <p className={`font-black text-sm ${s.color}`}>{s.val}</p>
+                      <p className="text-gray-600 text-[10px]">{s.label}</p>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             </div>
@@ -256,7 +319,7 @@ export default function HeroSection() {
 
           {/* ── STATS BAR ── */}
           <motion.div initial={{ opacity:0, y:28 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.52 }}
-            className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-3">
+            className="mt-12 md:mt-16 grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { icon:Users,    val:'50K+',  label:'Active Learners',    glowColor:'rgba(124,58,237,0.2)',  iconColor:'text-violet-400'  },
               { icon:BookOpen, val:'500+',  label:'Expert Courses',     glowColor:'rgba(99,102,241,0.2)',  iconColor:'text-indigo-400'  },
@@ -264,15 +327,15 @@ export default function HeroSection() {
               { icon:Zap,      val:'₹2Cr+', label:'Affiliate Earnings', glowColor:'rgba(16,185,129,0.2)', iconColor:'text-green-400'   },
             ].map((s,i) => (
               <div key={i}
-                className="flex items-center gap-3 rounded-2xl p-4 transition-all duration-300 hover:-translate-y-1 cursor-default group"
+                className="flex items-center gap-3 rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:-translate-y-1 cursor-default group"
                 style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
                   style={{ background: s.glowColor }}>
-                  <s.icon className={`w-5 h-5 ${s.iconColor}`} />
+                  <s.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${s.iconColor}`} />
                 </div>
                 <div>
-                  <p className="text-white font-black text-xl leading-tight">{s.val}</p>
-                  <p className="text-gray-500 text-xs">{s.label}</p>
+                  <p className="text-white font-black text-lg sm:text-xl leading-tight">{s.val}</p>
+                  <p className="text-gray-500 text-[10px] sm:text-xs">{s.label}</p>
                 </div>
               </div>
             ))}
