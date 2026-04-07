@@ -129,7 +129,7 @@ export default function Navbar() {
       <div className={`sidebar-overlay ${open ? 'open' : ''}`} onClick={() => setOpen(false)} />
 
       {/* ── Mobile Sidebar ── */}
-      <div className={`sidebar-panel ${open ? 'open' : ''}`}>
+      <div className={`sidebar-panel ${open ? 'open' : ''}`} style={{ display:'flex', flexDirection:'column' }}>
 
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
@@ -267,30 +267,32 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Bottom actions */}
-        <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background:'linear-gradient(180deg,transparent,rgba(10,12,24,1) 30%)', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
-          {user ? (
-            <div className="space-y-2">
-              <Link href={dashboardPath} onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-violet-400 transition-all"
-                style={{ background:'rgba(124,58,237,0.1)', border:'1px solid rgba(124,58,237,0.2)' }}>
-                <LayoutDashboard className="w-4 h-4" />My Dashboard
-              </Link>
-              <button onClick={handleLogout}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-red-400 font-bold text-sm transition-all hover:bg-red-500/10">
-                <LogOut className="w-4 h-4" />Logout
-              </button>
-            </div>
-          ) : (
-            <Link href="/register" onClick={() => setOpen(false)}
-              className="btn-primary w-full py-3.5 text-sm font-black justify-center">
-              Start Learning Free <ArrowRight className="w-4 h-4" />
-            </Link>
-          )}
-        </div>
+        {/* Flex spacer to push bottom actions down */}
+        <div style={{ flex: 1, minHeight: '24px' }} />
 
-        {/* Bottom spacer for absolute footer */}
-        <div className="h-28" />
+        {/* Bottom actions — no absolute, flows naturally */}
+        <div className="mx-4 mb-6 mt-4">
+          <div className="pt-4" style={{ borderTop:'1px solid rgba(255,255,255,0.07)' }}>
+            {user ? (
+              <div className="space-y-2">
+                <Link href={dashboardPath} onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm text-violet-400 transition-all"
+                  style={{ background:'rgba(124,58,237,0.1)', border:'1px solid rgba(124,58,237,0.2)' }}>
+                  <LayoutDashboard className="w-4 h-4" />My Dashboard
+                </Link>
+                <button onClick={handleLogout}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-red-400 font-bold text-sm transition-all hover:bg-red-500/10">
+                  <LogOut className="w-4 h-4" />Logout
+                </button>
+              </div>
+            ) : (
+              <Link href="/register" onClick={() => setOpen(false)}
+                className="btn-primary w-full py-3.5 text-sm font-black justify-center">
+                Start Learning Free <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     </>
   )
