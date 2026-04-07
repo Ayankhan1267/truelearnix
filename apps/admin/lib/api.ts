@@ -46,8 +46,8 @@ export const adminAPI = {
   toggleUser: (id: string) => api.patch(`/admin/users/${id}/toggle`),
   updateUserRole: (id: string, role: string) => api.patch(`/admin/users/${id}/role`, { role }),
   updateUserPackage: (id: string, packageTier: string) => api.patch(`/admin/users/${id}/package`, { packageTier }),
-  // Courses
-  allCourses: (params?: any) => api.get('/courses', { params }),
+  // Courses — admin sees all statuses
+  allCourses: (params?: any) => api.get('/admin/courses/all', { params }),
   pendingCourses: () => api.get('/admin/courses/pending'),
   approveCourse: (id: string) => api.patch(`/admin/courses/${id}/approve`),
   rejectCourse: (id: string, reason: string) => api.patch(`/admin/courses/${id}/reject`, { reason }),

@@ -32,7 +32,7 @@ export default function LoginPage() {
       const { user, accessToken, refreshToken } = res.data
       setAuth(user, accessToken, refreshToken)
       toast.success(`Welcome back, ${user.name}!`)
-      const dashPath = user.role === 'admin' ? '/admin' : user.role === 'mentor' ? '/mentor' : '/student'
+      const dashPath = user.role === 'admin' ? '/admin' : user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard'
       router.push(dashPath)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed')
@@ -46,11 +46,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold gradient-text">TruLearnix</span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <img src="/logo.png" alt="TruLearnix" className="h-12 w-auto" />
           </Link>
           <h1 className="text-2xl font-bold text-white mt-4">Welcome back</h1>
           <p className="text-gray-400 mt-1">Sign in to continue learning</p>

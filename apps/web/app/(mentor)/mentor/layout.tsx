@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { BookOpen, LayoutDashboard, Video, FileQuestion, Users, Wallet, User, LogOut, BarChart2 } from 'lucide-react'
@@ -21,13 +21,17 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
   const { user, isAuthenticated, logout } = useAuthStore()
   const router = useRouter()
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
+    if (!mounted) return
     if (!isAuthenticated()) router.push('/login')
     else if (user?.role !== 'mentor') router.push(`/${user?.role}`)
-  }, [user])
+  }, [mounted, user])
 
-  if (!user || user.role !== 'mentor') return null
+  if (!mounted || !user || user.role !== 'mentor') return null
 
   const handleLogout = async () => {
     try { await authAPI.logout() } catch {}
@@ -39,11 +43,8 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
     <div className="flex min-h-screen bg-dark-900">
       <aside className="fixed left-0 top-0 h-full w-64 bg-dark-800 border-r border-white/5 flex flex-col z-40">
         <div className="p-6 border-b border-white/5">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-bold gradient-text">Mentor Panel</span>
+          <Link href="/" className="flex items-center">
+            <img src="/logo.png" alt="TruLearnix" className="h-8 w-auto" />
           </Link>
         </div>
         <div className="p-4 border-b border-white/5">

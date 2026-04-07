@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getDashboardStats, getAllUsers, toggleUserStatus, getPendingCourses, approveCourse, rejectCourse, getTickets, updateTicket } from '../controllers/adminController';
 import User from '../models/User';
+import Course from '../models/Course';
 import Package from '../models/Package';
 import PackagePurchase from '../models/PackagePurchase';
 import Commission from '../models/Commission';
@@ -40,7 +41,21 @@ router.patch('/users/:id/package', async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Courses
+// Courses — admin full view (ALL statuses)
+router.get('/courses/all', async (req, res) => {
+  try {
+    const { status, search, page = 1, limit = 50 } = req.query;
+    const filter: any = {};
+    if (status) filter.status = status;
+    if (search) filter.title = { $regex: search, $options: 'i' };
+    const skip = (Number(page) - 1) * Number(limit);
+    const [courses, total] = await Promise.all([
+      Course.find(filter).populate('mentor', 'name email').sort('-createdAt').skip(skip).limit(Number(limit)),
+      Course.countDocuments(filter),
+    ]);
+    res.json({ success: true, courses, total });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
 router.get('/courses/pending', getPendingCourses);
 router.patch('/courses/:id/approve', approveCourse);
 router.patch('/courses/:id/reject', rejectCourse);

@@ -28,11 +28,8 @@ export default function Footer() {
 
           {/* Brand */}
           <div className="col-span-2 sm:col-span-4 md:col-span-2">
-            <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/45 transition-all">
-                <BookOpen className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-black gradient-text">TruLearnix</span>
+            <Link href="/" className="inline-flex items-center mb-5">
+              <img src="/logo.png" alt="TruLearnix" className="h-9 w-auto" />
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed mb-6 max-w-xs">
               India's premium EdTech platform for live learning, career growth, and income generation through affiliate partnerships.

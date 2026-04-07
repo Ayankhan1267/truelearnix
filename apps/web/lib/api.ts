@@ -83,6 +83,8 @@ export const userAPI = {
 
 // Live classes
 export const classAPI = {
+  getPublic: () => api.get('/classes/public'),
+  getUpcoming: () => api.get('/classes/upcoming'),
   upcoming: () => api.get('/classes/upcoming'),
   create: (data: any) => api.post('/classes', data),
   join: (id: string) => api.get(`/classes/${id}/join`),
@@ -131,6 +133,7 @@ export const adminAPI = {
 export const packageAPI = {
   getAll: () => api.get('/packages'),
   getMatrix: () => api.get('/packages/commission-matrix'),
+  getCommissionMatrix: () => api.get('/packages/commission-matrix'),
   getMy: () => api.get('/packages/my'),
   createOrder: (data: any) => api.post('/packages/order', data),
   verify: (data: any) => api.post('/packages/verify', data),

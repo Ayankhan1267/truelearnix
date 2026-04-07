@@ -67,12 +67,8 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
 
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
-                style={{ background:'linear-gradient(135deg,#7c3aed,#6366f1)', boxShadow:'0 4px 20px rgba(124,58,237,0.4)' }}>
-                <BookOpen className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-black gradient-text">TruLearnix</span>
+            <Link href="/" className="flex items-center group">
+              <img src="/logo.png" alt="TruLearnix" className="h-9 w-auto" />
             </Link>
 
             {/* Desktop nav */}
@@ -133,12 +129,8 @@ export default function Navbar() {
 
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
-          <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background:'linear-gradient(135deg,#7c3aed,#6366f1)', boxShadow:'0 4px 16px rgba(124,58,237,0.4)' }}>
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-black gradient-text">TruLearnix</span>
+          <Link href="/" onClick={() => setOpen(false)} className="flex items-center">
+            <img src="/logo.png" alt="TruLearnix" className="h-8 w-auto" />
           </Link>
           <button onClick={() => setOpen(false)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white transition-all"

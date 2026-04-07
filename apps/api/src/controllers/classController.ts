@@ -136,3 +136,25 @@ export const cancelClass = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getPublicLiveClasses = async (_req: any, res: Response) => {
+  try {
+    // Get live classes + upcoming in next 48 hours
+    const now = new Date();
+    const cutoff = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const classes = await LiveClass.find({
+      status: { $in: ['live', 'scheduled'] },
+      $or: [
+        { status: 'live' },
+        { scheduledAt: { $gte: now, $lte: cutoff } }
+      ]
+    })
+      .populate('mentor', 'name avatar')
+      .populate('course', 'title category')
+      .sort({ status: -1, scheduledAt: 1 })
+      .limit(8);
+    res.json({ success: true, classes });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
