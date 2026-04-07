@@ -50,14 +50,14 @@ const plans = [
 
 export default function PricingSection() {
   return (
-    <section className="py-24 px-4 relative overflow-hidden" id="pricing">
+    <section className="py-14 md:py-24 px-4 relative overflow-hidden" id="pricing">
       {/* Background glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.07) 0%, transparent 70%)' }} />
 
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 md:mb-16">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
             className="section-label mb-5">
             PRICING PLANS
@@ -81,7 +81,7 @@ export default function PricingSection() {
                 viewport={{ once: true }}
                 className={`relative rounded-3xl p-8 transition-all duration-300 ${
                   plan.highlight
-                    ? 'md:-translate-y-3 md:scale-[1.03]'
+                    ? 'lg:-translate-y-3 lg:scale-[1.03]'
                     : 'hover:border-violet-500/25'
                 }`}
                 style={plan.highlight ? {

@@ -54,13 +54,13 @@ function ClassCard({ cls, i }: { cls: typeof classes[0], i: number }) {
 
 export default function LiveClassesSection() {
   return (
-    <section className="py-24 px-4 relative overflow-hidden section-alt">
+    <section className="py-14 md:py-24 px-4 relative">
       <div className="absolute inset-0 pointer-events-none"
         style={{ background:'radial-gradient(ellipse 60% 60% at 80% 40%, rgba(239,68,68,0.05), transparent)' }} />
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 md:mb-12 gap-4">
           <div>
             <motion.div initial={{ opacity:0 }} whileInView={{ opacity:1 }} viewport={{ once:true }}
               className="inline-flex items-center gap-2 text-xs font-black px-4 py-1.5 rounded-full mb-5"

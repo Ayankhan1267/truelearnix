@@ -5,7 +5,7 @@ import { ArrowRight, Zap, Video, Award, Shield, RefreshCcw, CreditCard } from 'l
 
 export default function CTASection() {
   return (
-    <section className="py-24 px-4 relative overflow-hidden">
+    <section className="py-14 md:py-24 px-4 relative overflow-hidden">
       {/* Background glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(ellipse, rgba(124,58,237,0.1) 0%, transparent 70%)' }} />

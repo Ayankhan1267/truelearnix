@@ -204,11 +204,9 @@ export default function Navbar() {
                 className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all ${
                   active
                     ? 'text-violet-400'
-                    : 'text-gray-300 hover:text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
                 }`}
                 style={active ? { background:'rgba(124,58,237,0.12)', border:'1px solid rgba(124,58,237,0.2)' } : { background:'transparent' }}
-                onMouseEnter={e => !active && ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)')}
-                onMouseLeave={e => !active && ((e.currentTarget as HTMLElement).style.background = 'transparent')}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -235,10 +233,8 @@ export default function Navbar() {
             const Icon = link.icon
             return (
               <Link key={link.href} href={link.href} onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-gray-400 hover:text-white transition-all group"
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all group"
                 style={{ background:'transparent' }}
-                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)')}
-                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
               >
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background:'rgba(255,255,255,0.05)' }}>

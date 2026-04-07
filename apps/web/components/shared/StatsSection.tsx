@@ -15,7 +15,7 @@ const stats = [
 
 export default function StatsSection() {
   return (
-    <section className="py-14 relative overflow-hidden">
+    <section className="py-10 md:py-14 relative overflow-hidden">
       {/* Subtle separator line */}
       <div className="absolute inset-x-0 top-0 h-px"
         style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.2), transparent)' }} />

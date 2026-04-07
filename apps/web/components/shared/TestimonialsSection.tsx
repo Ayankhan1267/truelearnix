@@ -50,12 +50,12 @@ function TestCard({ t }: { t: typeof testimonials[0] }) {
 export default function TestimonialsSection() {
   const doubled = [...testimonials, ...testimonials]
   return (
-    <section className="py-24 overflow-hidden relative">
+    <section className="py-14 md:py-24 overflow-hidden relative">
       {/* Background glow */}
       <div className="absolute inset-x-0 top-1/2 h-px pointer-events-none"
         style={{ background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.2), transparent)' }} />
 
-      <div className="max-w-7xl mx-auto px-4 mb-14 text-center">
+      <div className="max-w-7xl mx-auto px-4 mb-10 md:mb-14 text-center">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
           className="section-label mb-5">
           <Star className="w-3.5 h-3.5" />

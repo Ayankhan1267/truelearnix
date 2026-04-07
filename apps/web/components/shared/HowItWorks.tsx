@@ -12,13 +12,13 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 px-4 relative overflow-hidden">
+    <section className="py-14 md:py-24 px-4 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(124,58,237,0.04) 50%, transparent 100%)' }} />
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 md:mb-16">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
             className="section-label mb-5">
             SIMPLE PROCESS

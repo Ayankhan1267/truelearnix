@@ -10,7 +10,7 @@ export default function Footer() {
     <footer style={{ background: 'rgba(8,11,20,0.9)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
 
       {/* Newsletter strip */}
-      <div className="py-10 px-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="py-8 md:py-10 px-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <h3 className="text-white font-black text-xl mb-1">Free learning resources weekly</h3>
@@ -23,7 +23,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-16">
+      <div className="max-w-7xl mx-auto px-4 py-10 md:py-16">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
 
           {/* Brand */}

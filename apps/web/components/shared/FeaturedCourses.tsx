@@ -93,14 +93,14 @@ export default function FeaturedCourses() {
     : data?.courses?.map((c:any, i:number) => <CourseCard key={c._id} course={c} i={i} />)
 
   return (
-    <section className="py-24 relative">
+    <section className="py-14 md:py-24 relative">
       {/* Section bg accent */}
       <div className="absolute inset-0 pointer-events-none"
         style={{ background:'radial-gradient(ellipse 80% 50% at 50% 50%, rgba(99,102,241,0.04), transparent)' }} />
 
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="flex items-end justify-between mb-12">
+        <div className="flex items-end justify-between mb-8 md:mb-12">
           <div>
             <motion.div initial={{ opacity:0 }} whileInView={{ opacity:1 }} viewport={{ once:true }}
               className="section-label mb-5">
