@@ -27,35 +27,33 @@ export default function HeroSection() {
 
       {/* Moving animated orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="hero-orb-1 absolute top-[-10%] left-[-5%] w-[700px] h-[700px] rounded-full"
+        <div className="hero-orb-1 absolute top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 70%)' }} />
-        <div className="hero-orb-2 absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full"
+        <div className="hero-orb-2 absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(79,70,229,0.20) 0%, transparent 70%)' }} />
-        <div className="hero-orb-3 absolute top-[30%] right-[20%] w-[400px] h-[400px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(217,70,239,0.14) 0%, transparent 70%)' }} />
-        <div className="absolute top-[10%] right-[35%] w-[250px] h-[250px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 70%)' }} />
+        <div className="hero-orb-3 absolute top-[35%] right-[15%] w-[350px] h-[350px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(217,70,239,0.13) 0%, transparent 70%)' }} />
       </div>
 
       {/* Grid overlay */}
-      <div className="hero-grid absolute inset-0 pointer-events-none opacity-60" />
+      <div className="hero-grid absolute inset-0 pointer-events-none opacity-50" />
 
-      {/* ── Announcement ticker ── */}
-      <div className="relative z-10 overflow-hidden border-b border-violet-500/20"
-        style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.15), rgba(217,70,239,0.10), rgba(6,182,212,0.08))' }}>
-        <div className="ticker-track py-2.5">
-          {ticker.map((item, i) => (
-            <span key={i} className="flex items-center gap-6 px-6 text-xs font-bold text-gray-300 whitespace-nowrap">
-              {item}
-              <span className="text-violet-500/50">✦</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Main hero content ── */}
+      {/* ── Main hero content (pt-20 accounts for fixed navbar height) ── */}
       <div className="relative z-10 flex-1 flex items-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-16 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full">
+
+          {/* ── Announcement ticker — inside content, below navbar ── */}
+          <div className="overflow-hidden rounded-2xl mb-8 border border-violet-500/20"
+            style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.12), rgba(217,70,239,0.08), rgba(6,182,212,0.06))' }}>
+            <div className="ticker-track py-2.5">
+              {ticker.map((item, i) => (
+                <span key={i} className="flex items-center gap-6 px-6 text-xs font-bold text-gray-300 whitespace-nowrap">
+                  {item}
+                  <span className="text-violet-500/40">✦</span>
+                </span>
+              ))}
+            </div>
+          </div>
           <div className="grid lg:grid-cols-2 gap-12 xl:gap-20 items-center">
 
             {/* ── LEFT ── */}

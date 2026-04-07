@@ -60,11 +60,9 @@ export default function Navbar() {
     <>
       {/* ── Desktop / Mobile Top Bar ── */}
       <nav className={`fixed top-0 w-full z-30 transition-all duration-300 ${
-        scrolled
-          ? 'border-b border-white/[0.06]'
-          : 'bg-transparent'
+        scrolled ? 'border-b border-white/[0.06]' : ''
       }`}
-        style={scrolled ? { background:'rgba(4,5,10,0.92)', backdropFilter:'blur(24px)' } : {}}>
+        style={{ background: scrolled ? 'rgba(4,5,10,0.94)' : 'rgba(4,5,10,0.75)', backdropFilter:'blur(20px)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
 
