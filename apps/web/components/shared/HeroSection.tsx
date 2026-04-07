@@ -43,8 +43,7 @@ export default function HeroSection() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-16 w-full">
 
           {/* ── Announcement ticker — inside content, below navbar ── */}
-          <div className="rounded-2xl mb-8 border border-violet-500/20" style={{ overflow:'hidden', width:'100%' }}
-            style={{ background: 'linear-gradient(90deg, rgba(124,58,237,0.12), rgba(217,70,239,0.08), rgba(6,182,212,0.06))' }}>
+          <div className="rounded-2xl mb-8 border border-violet-500/20" style={{ overflow:'hidden', width:'100%', background: 'linear-gradient(90deg, rgba(124,58,237,0.12), rgba(217,70,239,0.08), rgba(6,182,212,0.06))' }}>
             <div className="ticker-track py-2.5">
               {ticker.map((item, i) => (
                 <span key={i} className="flex items-center gap-6 px-6 text-xs font-bold text-gray-300 whitespace-nowrap">
