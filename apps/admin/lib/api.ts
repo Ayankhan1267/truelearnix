@@ -81,6 +81,11 @@ export const adminAPI = {
   // Live classes
   allClasses: (params?: any) => api.get('/classes', { params }),
   createClass: (data: any) => api.post('/classes', data),
+  getClass: (id: string) => api.get(`/classes/${id}/detail`),
+  startClass: (id: string) => api.patch(`/classes/${id}/start`),
+  endClass: (id: string) => api.patch(`/classes/${id}/end`),
+  cancelClass: (id: string) => api.delete(`/classes/${id}`),
+  getAttendance: (id: string) => api.get(`/classes/${id}/attendance`),
   // Coupons
   coupons: () => api.get('/coupons'),
   createCoupon: (data: any) => api.post('/coupons', data),
@@ -105,6 +110,97 @@ export const adminAPI = {
   reminders: () => api.get('/reminders'),
   createReminder: (data: any) => api.post('/reminders', data),
   deleteReminder: (id: string) => api.delete(`/reminders/${id}`),
+  // Popups
+  getPopups: () => api.get('/popups'),
+  createPopup: (data: any) => api.post('/popups', data),
+  updatePopup: (id: string, data: any) => api.put(`/popups/${id}`, data),
+  togglePopup: (id: string) => api.patch(`/popups/${id}/toggle`),
+  deletePopup: (id: string) => api.delete(`/popups/${id}`),
+  // Site Content (CMS)
+  getSiteContent: (section: string) => api.get(`/site-content/${section}`),
+  saveSiteContent: (section: string, data: any) => api.put(`/site-content/${section}`, data),
+  // Media / Uploads
+  uploadFile: (formData: FormData) => api.post('/upload/any', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadImage: (formData: FormData) => api.post('/upload/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadVideo: (formData: FormData) => api.post('/upload/video', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  listMedia: (type?: string) => api.get('/upload/media/list', { params: type ? { type } : {} }),
+  deleteMedia: (id: string) => api.delete(`/upload/media/${id}`),
+  // TruLance
+  trulanceProjects: (params?: any) => api.get('/admin/trulance/projects', { params }),
+  updateTrulanceProject: (id: string, data: any) => api.patch(`/admin/trulance/projects/${id}`, data),
+  deleteTrulanceProject: (id: string) => api.delete(`/admin/trulance/projects/${id}`),
+  trulanceFreelancers: (params?: any) => api.get('/admin/trulance/freelancers', { params }),
+  // Mentor Management
+  createMentor: (data: any) => api.post('/admin/mentors', data),
+  mentors: (params?: any) => api.get('/admin/mentors', { params }),
+  approveMentor: (id: string) => api.patch(`/admin/mentors/${id}/approve`),
+  rejectMentor: (id: string, reason?: string) => api.patch(`/admin/mentors/${id}/reject`, { reason }),
+  assignCourse: (mentorId: string, courseId: string, maxStudents?: number) =>
+    api.post(`/admin/mentors/${mentorId}/assign-course`, { courseId, maxStudents }),
+  unassignCourse: (mentorId: string, courseId: string) =>
+    api.delete(`/admin/mentors/${mentorId}/assign-course/${courseId}`),
+  giveMentorPackage: (id: string, packageTier: string) =>
+    api.patch(`/admin/mentors/${id}/give-package`, { packageTier }),
+  // Finance
+  financeOverview: (period?: string) => api.get('/finance/overview', { params: { period } }),
+  financePnl: (year?: number) => api.get('/finance/pnl', { params: { year } }),
+  financeTds: (year?: number) => api.get('/finance/tds', { params: { year } }),
+  financeGst: (year?: number) => api.get('/finance/gst', { params: { year } }),
+  financeExpenses: (params?: any) => api.get('/finance/expenses', { params }),
+  addExpense: (data: any) => api.post('/finance/expenses', data),
+  deleteExpense: (id: string) => api.delete(`/finance/expenses/${id}`),
+  financeChart: (period?: string) => api.get('/finance/revenue-chart', { params: { period } }),
+
+  // Marketing
+  marketingOverview: () => api.get('/marketing/overview'),
+  getTemplates: (params?: any) => api.get('/marketing/templates', { params }),
+  createTemplate: (data: any) => api.post('/marketing/templates', data),
+  updateTemplate: (id: string, data: any) => api.put(`/marketing/templates/${id}`, data),
+  deleteTemplate: (id: string) => api.delete(`/marketing/templates/${id}`),
+  getCampaigns: (params?: any) => api.get('/marketing/campaigns', { params }),
+  createCampaign: (data: any) => api.post('/marketing/campaigns', data),
+  sendCampaign: (id: string) => api.post(`/marketing/campaigns/${id}/send`),
+  deleteCampaign: (id: string) => api.delete(`/marketing/campaigns/${id}`),
+  getChats: (params?: any) => api.get('/marketing/chats', { params }),
+  getChat: (phone: string) => api.get(`/marketing/chats/${phone}`),
+  sendWhatsApp: (phone: string, message: string) => api.post(`/marketing/chats/${phone}/send`, { message }),
+  sendSingleEmail: (data: any) => api.post('/marketing/send-email', data),
+  getChatbotFlows: () => api.get('/marketing/chatbot'),
+  createChatbotFlow: (data: any) => api.post('/marketing/chatbot', data),
+  updateChatbotFlow: (id: string, data: any) => api.put(`/marketing/chatbot/${id}`, data),
+  toggleChatbotFlow: (id: string) => api.patch(`/marketing/chatbot/${id}/toggle`),
+  deleteChatbotFlow: (id: string) => api.delete(`/marketing/chatbot/${id}`),
+  // Employees
+  employees: (params?: any) => api.get('/admin/employees', { params }),
+  createEmployee: (data: any) => api.post('/admin/employees', data),
+  updateEmployee: (id: string, data: any) => api.patch(`/admin/employees/${id}`, data),
+  deleteEmployee: (id: string) => api.delete(`/admin/employees/${id}`),
+  // Learners
+  learners: (params?: any) => api.get('/admin/learners', { params }),
+  // NOVA AI Agent
+  novaConfig: () => api.get('/nova/config'),
+  updateNovaConfig: (data: any) => api.put('/nova/config', data),
+  novaChat: (message: string) => api.post('/nova/chat', { message }),
+  novaHistory: () => api.get('/nova/history'),
+  novaClearHistory: () => api.delete('/nova/history'),
+  novaPulse: () => api.get('/nova/pulse'),
+  novaActionLog: () => api.get('/nova/action-log'),
+  novaSendWhatsApp: (phone: string, message: string) => api.post('/nova/send-whatsapp', { phone, message }),
+  novaBroadcast: (phones: string[], message: string) => api.post('/nova/broadcast', { phones, message }),
+  novaFounderReport: (period: string) => api.post('/nova/founder-report', { period }),
+  novaEmployeeReports: (date?: string) => api.get('/nova/employee-reports', { params: date ? { date } : {} }),
+  novaEmployeeReportById: (id: string) => api.get(`/nova/employee-reports/${id}`),
+  novaSendMorningBriefings: () => api.post('/nova/send-morning-briefings'),
+  novaRequestEodReports: () => api.post('/nova/request-eod-reports'),
+  novaSendTeamReport: () => api.post('/nova/send-team-report'),
+  novaManualReport: (id: string, text: string) => api.post(`/nova/manual-report/${id}`, { text }),
+  novaEmployeeTasks: (id: string) => api.get(`/nova/employee-tasks/${id}`),
+  // Reports
+  reportCommission: (params?: any) => api.get('/admin/reports/commission', { params }),
+  reportSales: (params?: any) => api.get('/admin/reports/sales', { params }),
+  reportPerformance: (params?: any) => api.get('/admin/reports/performance', { params }),
+  reportTeam: () => api.get('/admin/reports/team'),
+  reportLearners: (params?: any) => api.get('/admin/reports/learners', { params }),
 };
 
 export default api;

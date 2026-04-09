@@ -83,7 +83,7 @@ export const joinClass = async (req: AuthRequest, res: Response) => {
       response.joinUrl = req.user.role === 'mentor' ? liveClass.zoomStartUrl : liveClass.zoomJoinUrl;
       response.password = liveClass.zoomPassword;
     } else {
-      response.roomId = liveClass.roomId;
+      response.roomId = (liveClass as any).roomId;
     }
 
     res.json(response);

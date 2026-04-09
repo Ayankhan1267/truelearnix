@@ -139,10 +139,64 @@ router.get('/withdrawals', protect, async (req: any, res) => {
 // GET /api/affiliate/leaderboard — public leaderboard
 router.get('/leaderboard', async (_req, res) => {
   try {
-    const top = await User.find({ isAffiliate: true, isActive: true })
-      .select('name avatar packageTier totalEarnings xpPoints')
-      .sort('-totalEarnings').limit(20);
-    res.json({ success: true, leaderboard: top });
+    const monthStart = new Date();
+    monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+
+    const [top, monthlyAgg, referralAgg] = await Promise.all([
+      User.find({ isAffiliate: true, isActive: true })
+        .select('name packageTier totalEarnings streak xpPoints level')
+        .sort('-totalEarnings')
+        .limit(20),
+
+      Commission.aggregate([
+        { $match: { createdAt: { $gte: monthStart }, status: { $in: ['approved', 'paid'] } } },
+        { $group: { _id: '$earner', monthlyEarnings: { $sum: '$commissionAmount' } } },
+      ]),
+
+      User.aggregate([
+        { $match: { isAffiliate: true, isActive: true } },
+        { $project: { l1Count: { $ifNull: ['$upline1', null] } } },
+        // count how many users each person is upline1 of
+      ]),
+    ]);
+
+    // Monthly earnings map
+    const monthlyMap: Record<string, number> = {};
+    monthlyAgg.forEach((m: any) => { monthlyMap[m._id.toString()] = m.monthlyEarnings; });
+
+    // Direct referrals count per user
+    const refCounts = await User.aggregate([
+      { $match: { upline1: { $exists: true } } },
+      { $group: { _id: '$upline1', count: { $sum: 1 } } },
+    ]);
+    const refMap: Record<string, number> = {};
+    refCounts.forEach((r: any) => { refMap[r._id.toString()] = r.count; });
+
+    const leaderboard = top.map((u: any, i: number) => {
+      const id = u._id.toString();
+      const nameParts = u.name.trim().split(' ');
+      const maskedName = nameParts.length > 1
+        ? `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
+        : nameParts[0];
+
+      const tier = ['elite', 'supreme'].includes(u.packageTier) ? 'Elite'
+        : u.packageTier === 'pro' ? 'Pro' : 'Starter';
+
+      return {
+        rank: i + 1,
+        name: maskedName,
+        packageTier: u.packageTier,
+        tier,
+        totalEarnings: u.totalEarnings || 0,
+        monthlyEarnings: monthlyMap[id] || 0,
+        streak: u.streak || 0,
+        xpPoints: u.xpPoints || 0,
+        level: u.level || 1,
+        invites: refMap[id] || 0,
+      };
+    });
+
+    res.json({ success: true, leaderboard });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 

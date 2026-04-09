@@ -82,27 +82,22 @@ const TIER_META: Record<string, {
 
 const FALLBACK_PACKAGES = [
   {
-    _id: '1', tier: 'free', name: 'Free',
-    price: 0,
-    description: 'Start your journey — no credit card needed',
-    features: ['5 Free courses access', 'Community forum access', 'Basic certificates', '5 quiz attempts/month', 'First live class FREE', 'Email support'],
-    href: '/register',
+    _id: '1', tier: 'starter', name: 'Starter',
+    price: 4999, commissionRate: 10,
+    description: 'Perfect to start your partner journey',
+    features: ['5 Courses Access', 'Community Access', '10% L1 Commission', 'Basic Support', 'Partner Dashboard'],
   },
   {
     _id: '2', tier: 'pro', name: 'Pro',
-    price: 999,
+    price: 9999, commissionRate: 15,
     description: 'Everything to accelerate your career',
-    features: ['All 500+ courses unlimited', 'Live class access — daily', 'Premium AI certificates', 'Unlimited quizzes & tests', 'Download all recordings', 'Priority support 24/7', 'Earn Program (10% income share)', 'Mock interviews & mentoring'],
-    href: '/register?plan=pro',
-    commissionRate: 10,
+    features: ['All Courses Access', 'Live Classes', 'AI Coach', '15% L1 Commission', 'Community Access', 'Job Engine', 'Priority Email Support'],
   },
   {
     _id: '3', tier: 'elite', name: 'Elite',
-    price: 1999,
+    price: 19999, commissionRate: 22,
     description: 'Teach, earn, and build your brand',
-    features: ['Everything in Pro', 'Create & sell courses', 'Host your live classes', 'Student analytics dashboard', '70% revenue share', 'Dedicated mentor manager', 'Custom course branding', 'Early feature access'],
-    href: '/register?plan=elite',
-    commissionRate: 25,
+    features: ['All Courses Access', 'Live Classes', 'AI Coach', '22% L1 Commission', 'Personal Brand Builder', 'Mentor Support', 'Priority Support'],
   },
 ]
 
@@ -244,7 +239,7 @@ export default function PricingSection() {
   }, [])
 
   return (
-    <section className="py-14 md:py-24 px-4 relative overflow-hidden" id="pricing">
+    <section className="py-10 md:py-16 px-4 relative overflow-hidden" id="pricing">
       {/* bg glow */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full"
@@ -254,13 +249,13 @@ export default function PricingSection() {
       <div className="max-w-6xl mx-auto">
 
         {/* ── HEADER ── */}
-        <div className="text-center mb-10 md:mb-14">
+        <div className="text-center mb-7 md:mb-10">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
             className="section-label mb-5 mx-auto">
             PRICING PLANS
           </motion.div>
           <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight">
+            className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight">
             Simple,{' '}
             <span className="gradient-text">Transparent</span> Pricing
           </motion.h2>

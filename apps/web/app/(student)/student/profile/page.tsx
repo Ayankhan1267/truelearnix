@@ -3,7 +3,8 @@ import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userAPI } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
-import { Camera, Save, Loader2, Star, Trophy, Zap, Copy, Check } from 'lucide-react'
+import { Camera, Save, Loader2, Star, Trophy, Zap, Copy, Check, Link2, Phone, UserCheck, Crown, Shield } from 'lucide-react'
+import Link from 'next/link'
 import Cookies from 'js-cookie'
 
 const TIER_COLORS: Record<string, string> = {
@@ -236,6 +237,116 @@ export default function ProfilePage() {
           <div>
             <p className="text-gray-500">Login Count</p>
             <p className="text-white">{user?.loginCount || 0} times</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Affiliate & Partner Details */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2"><Link2 className="w-4 h-4 text-violet-400" />Affiliate Details</h3>
+          <Link href="/partner/dashboard" className="text-xs text-violet-400 hover:text-violet-300 bg-violet-900/20 border border-violet-700/30 px-3 py-1.5 rounded-lg transition-all">
+            Partner Panel →
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-gray-500 text-xs">Affiliate Code</p>
+            <div className="flex items-center gap-2 mt-1">
+              <code className="text-violet-400 font-bold font-mono">{user?.affiliateCode || '—'}</code>
+              {user?.affiliateCode && (
+                <button onClick={copyAffiliateCode} className="text-gray-500 hover:text-white transition-colors">
+                  {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Package Tier</p>
+            <p className="text-white font-semibold capitalize mt-1">{user?.packageTier || 'free'}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Commission Rate</p>
+            <p className="text-green-400 font-bold mt-1">{user?.commissionRate || 0}% (L1)</p>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Total Earnings</p>
+            <p className="text-white font-semibold mt-1">₹{(user?.totalEarnings || 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Wallet Balance</p>
+            <p className="text-white font-semibold mt-1">₹{(user?.wallet || 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Partner Status</p>
+            <p className={`font-semibold mt-1 ${user?.isAffiliate ? 'text-green-400' : 'text-gray-500'}`}>
+              {user?.isAffiliate ? 'Active Partner' : 'Not Active'}
+            </p>
+          </div>
+        </div>
+        {user?.packagePurchasedAt && (
+          <p className="text-xs text-gray-500">Package purchased: {new Date(user.packagePurchasedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        )}
+      </div>
+
+      {/* Manager & Sponsor Details */}
+      <div className="card space-y-4">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-blue-400" />Manager & Sponsor</h3>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {/* Manager */}
+          <div className="bg-dark-700 rounded-xl p-4">
+            <p className="text-gray-500 text-xs uppercase tracking-wider mb-3">Your Manager</p>
+            {user?.managerName ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white font-bold">
+                  {user.managerName[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-white font-semibold">{user.managerName}</p>
+                  {user.managerPhone && (
+                    <a href={`tel:${user.managerPhone}`} className="flex items-center gap-1 text-blue-400 text-sm hover:text-blue-300 mt-0.5">
+                      <Phone className="w-3 h-3" />{user.managerPhone}
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600 text-sm">No manager assigned yet</p>
+            )}
+          </div>
+
+          {/* Sponsor */}
+          <div className="bg-dark-700 rounded-xl p-4">
+            <p className="text-gray-500 text-xs uppercase tracking-wider mb-3">Referred By (Sponsor)</p>
+            {user?.sponsorCode ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold">Sponsor Code</p>
+                  <code className="text-violet-400 font-mono text-sm">{user.sponsorCode}</code>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600 text-sm">Not referred by anyone</p>
+            )}
+          </div>
+        </div>
+
+        {/* KYC Status */}
+        <div className="flex items-center justify-between p-3 bg-dark-700 rounded-xl">
+          <div className="flex items-center gap-2">
+            <Shield className={`w-4 h-4 ${user?.kyc?.status === 'verified' ? 'text-green-400' : user?.kyc?.status === 'submitted' ? 'text-yellow-400' : 'text-gray-500'}`} />
+            <span className="text-white text-sm">KYC Status</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-1 rounded-full capitalize font-medium ${user?.kyc?.status === 'verified' ? 'bg-green-900/30 text-green-400' : user?.kyc?.status === 'submitted' ? 'bg-yellow-900/30 text-yellow-400' : user?.kyc?.status === 'rejected' ? 'bg-red-900/30 text-red-400' : 'bg-dark-600 text-gray-500'}`}>
+              {user?.kyc?.status || 'pending'}
+            </span>
+            <Link href="/partner/kyc" className="text-xs text-violet-400 hover:text-violet-300">
+              {user?.kyc?.status === 'verified' ? 'View' : 'Complete →'}
+            </Link>
           </div>
         </div>
       </div>

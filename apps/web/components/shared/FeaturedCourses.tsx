@@ -50,7 +50,7 @@ function CourseCard({ c, i }: { c: any; i: number }) {
     >
       <Link href={`/courses/${c.slug || c._id}`} className="flex flex-col flex-1 overflow-hidden">
       {/* ── HEADER ── */}
-      <div className="relative overflow-hidden" style={{ height:'170px', background:`linear-gradient(135deg,${gradColors})` }}>
+      <div className="relative overflow-hidden" style={{ height:'clamp(110px, 18vw, 170px)', background:`linear-gradient(135deg,${gradColors})` }}>
 
         {/* Noise texture overlay */}
         <div className="absolute inset-0 opacity-30"
@@ -196,7 +196,7 @@ export default function FeaturedCourses() {
   const filtered = active === 'All' ? courses : courses.filter(c => c.category === active)
 
   return (
-    <section className="py-14 md:py-24 relative">
+    <section className="py-10 md:py-16 relative">
       <div className="absolute inset-0 pointer-events-none"
         style={{ background:'radial-gradient(ellipse 80% 50% at 50% 50%, rgba(99,102,241,0.05), transparent)' }} />
 

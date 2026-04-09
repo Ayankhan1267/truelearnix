@@ -2,21 +2,24 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { classAPI, courseAPI, mentorAPI } from '@/lib/api'
-import { Video, Plus, ExternalLink, Loader2, Play, Square, X } from 'lucide-react'
-import { format } from 'date-fns'
+import { Video, Plus, Loader2, Play, Square, X, Users, Clock, Calendar, Zap, CheckCircle2 } from 'lucide-react'
+import { format, formatDistanceToNow, isFuture } from 'date-fns'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
-const STATUS_BADGE: Record<string, string> = {
-  scheduled: 'bg-blue-500/20 text-blue-400',
-  live: 'bg-green-500/20 text-green-400',
-  ended: 'bg-gray-500/20 text-gray-400',
-  cancelled: 'bg-red-500/20 text-red-400',
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  scheduled: { label: 'Scheduled', cls: 'bg-blue-500/20 text-blue-400' },
+  live:      { label: 'LIVE',      cls: 'bg-red-500/20 text-red-400 animate-pulse' },
+  ended:     { label: 'Ended',     cls: 'bg-gray-500/20 text-gray-400' },
+  cancelled: { label: 'Cancelled', cls: 'bg-red-500/10 text-red-400' },
 }
 
 export default function MentorClasses() {
   const qc = useQueryClient()
+  const router = useRouter()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', courseId: '', scheduledAt: '', duration: '60', meetingLink: '' })
+  const [form, setForm] = useState({ title: '', courseId: '', scheduledAt: '', duration: '60', platform: 'zoom' })
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   const { data: classes, isLoading } = useQuery({
@@ -33,7 +36,7 @@ export default function MentorClasses() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['mentor-classes'] })
       setShowForm(false)
-      setForm({ title: '', courseId: '', scheduledAt: '', duration: '60', meetingLink: '' })
+      setForm({ title: '', courseId: '', scheduledAt: '', duration: '60', platform: 'zoom' })
       toast.success('Class scheduled!')
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
@@ -41,7 +44,11 @@ export default function MentorClasses() {
 
   const startMutation = useMutation({
     mutationFn: (id: string) => classAPI.start(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mentor-classes'] }); toast.success('Class started!') },
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ['mentor-classes'] })
+      toast.success('Class started!')
+      router.push(`/mentor/classes/${id}`)
+    },
   })
   const endMutation = useMutation({
     mutationFn: (id: string) => classAPI.end(id),
@@ -89,8 +96,10 @@ export default function MentorClasses() {
               <input value={form.duration} onChange={e => set('duration', e.target.value)} type="number" className="input" min="15" max="300" />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Meeting Link</label>
-              <input value={form.meetingLink} onChange={e => set('meetingLink', e.target.value)} className="input" placeholder="https://zoom.us/j/..." />
+              <label className="block text-sm text-gray-400 mb-1">Platform</label>
+              <select value={form.platform} onChange={e => set('platform', e.target.value)} className="input">
+                <option value="zoom">Zoom (auto-created)</option>
+              </select>
             </div>
           </div>
           <div className="flex gap-3">
@@ -131,11 +140,11 @@ export default function MentorClasses() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {cls.meetingLink && (
-                  <a href={cls.meetingLink} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-sm text-primary-400 hover:text-primary-300">
-                    <ExternalLink className="w-4 h-4" /> Join
-                  </a>
+                {cls.status === 'live' && (
+                  <Link href={`/mentor/classes/${cls._id}`}
+                    className="flex items-center gap-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-lg">
+                    <Zap className="w-3.5 h-3.5" /> Rejoin
+                  </Link>
                 )}
                 {cls.status === 'scheduled' && (
                   <>

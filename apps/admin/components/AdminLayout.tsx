@@ -10,13 +10,15 @@ const pageTitles: Record<string, string> = {
   '/analytics': 'Analytics',
   '/users': 'Users',
   '/packages': 'Packages',
-  '/finance': 'Finance',
+  '/finance': 'Finance Dashboard',
   '/crm': 'CRM',
+  '/mentors': 'Mentor Management',
   '/courses': 'Courses',
   '/live-classes': 'Live Classes',
   '/blog': 'Blog',
   '/support': 'Support',
   '/notifications': 'Notifications',
+  '/content': 'Website Content',
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -51,7 +51,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.json({ success: true, message: 'Email verified successfully', accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } });
+    res.json({ success: true, message: 'Email verified successfully', accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar, wallet: user.wallet, isAffiliate: user.isAffiliate, packageTier: user.packageTier, commissionRate: user.commissionRate, affiliateCode: user.affiliateCode } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -94,7 +94,7 @@ export const login = async (req: Request, res: Response) => {
       success: true,
       accessToken,
       refreshToken,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar, wallet: user.wallet }
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar, wallet: user.wallet, isAffiliate: user.isAffiliate, packageTier: user.packageTier, commissionRate: user.commissionRate, affiliateCode: user.affiliateCode, department: (user as any).department, permissions: (user as any).permissions || [] }
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

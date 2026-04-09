@@ -133,7 +133,7 @@ export default function LiveClassesSection() {
   }, [])
 
   return (
-    <section className="py-12 md:py-24 px-4 relative overflow-hidden">
+    <section className="py-10 md:py-16 px-4 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
         style={{ background:'radial-gradient(ellipse 60% 60% at 80% 40%, rgba(239,68,68,0.05), transparent)' }} />
 
@@ -190,8 +190,8 @@ export default function LiveClassesSection() {
             ))}
           </div>
 
-          {/* Features + CTA */}
-          <div className="flex flex-col gap-4">
+          {/* Features + CTA — desktop only */}
+          <div className="hidden lg:flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
               {features.map((h, i) => (
                 <motion.div key={i}

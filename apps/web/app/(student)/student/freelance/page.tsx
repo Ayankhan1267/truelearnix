@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { freelanceAPI } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
-import { Briefcase, Search, Plus, X, Clock, DollarSign, Users, CheckCircle, Filter } from 'lucide-react'
+import { Briefcase, Search, Plus, X, Clock, DollarSign, Users, CheckCircle, Zap, ExternalLink, Sparkles } from 'lucide-react'
+import api from '@/lib/api'
 
 const CATEGORIES = ['All', 'Development', 'Design', 'Marketing', 'Content', 'Data', 'Video', 'Other']
 const LEVELS = ['All', 'beginner', 'intermediate', 'expert']
@@ -16,21 +17,30 @@ export default function FreelancePage() {
   const [category, setCategory] = useState('All')
   const [level, setLevel] = useState('All')
   const [showPost, setShowPost] = useState(false)
-  const [tab, setTab] = useState<'browse' | 'my-jobs'>('browse')
+  const [tab, setTab] = useState<'recommended' | 'browse' | 'my-jobs'>('recommended')
   const [applied, setApplied] = useState<Set<string>>(new Set())
   const [form, setForm] = useState({
     title: '', description: '', budget: '', budgetType: 'fixed',
     skills: '', duration: '1 month', category: 'Development', experienceLevel: 'intermediate'
   })
 
+  // Fetch full profile to get expertise
+  const { data: profile } = useQuery({
+    queryKey: ['profile-me'],
+    queryFn: () => api.get('/users/me').then(r => r.data.user),
+  })
+
+  const expertise: string[] = profile?.expertise || []
+
   const { data: jobs = [], isLoading } = useQuery({
-    queryKey: ['freelance', search, category, level, tab],
+    queryKey: ['freelance', search, category, level, tab, expertise.join(',')],
     queryFn: () => {
       if (tab === 'my-jobs') return freelanceAPI.my().then(r => r.data.data)
       const params: any = {}
       if (category !== 'All') params.category = category
       if (level !== 'All') params.experienceLevel = level
       if (search) params.search = search
+      if (tab === 'recommended' && expertise.length > 0) params.skills = expertise.join(',')
       return freelanceAPI.all(params).then(r => r.data.data)
     },
   })
@@ -71,15 +81,51 @@ export default function FreelancePage() {
         </button>
       </div>
 
+      {/* TruLance Banner */}
+      <a href="https://trulance.peptly.in" target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-between p-4 rounded-2xl cursor-pointer hover:opacity-90 transition-all group"
+        style={{ background: 'linear-gradient(135deg,rgba(13,148,136,0.12),rgba(8,145,178,0.12))', border: '1px solid rgba(13,148,136,0.3)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,#0d9488,#0891b2)' }}>
+            <Zap className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm">TruLance — Full Freelance Marketplace</p>
+            <p className="text-xs text-teal-400">Browse 200+ projects, find talent &amp; build your profile on trulance.peptly.in</p>
+          </div>
+        </div>
+        <ExternalLink className="w-4 h-4 text-teal-400 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+      </a>
+
       {/* Tabs */}
       <div className="flex gap-2 border-b border-white/10 pb-2">
-        {(['browse', 'my-jobs'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${tab === t ? 'text-primary-400 border-b-2 border-primary-400' : 'text-gray-400 hover:text-white'}`}>
-            {t === 'browse' ? 'Browse Jobs' : 'My Posted Jobs'}
+        {([
+          { key: 'recommended', label: 'Recommended' },
+          { key: 'browse', label: 'Browse All' },
+          { key: 'my-jobs', label: 'My Posted Jobs' },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${tab === t.key ? 'text-primary-400 border-b-2 border-primary-400' : 'text-gray-400 hover:text-white'}`}>
+            {t.key === 'recommended' && <Sparkles className="w-3.5 h-3.5" />}
+            {t.label}
           </button>
         ))}
       </div>
+
+      {/* Recommended hint */}
+      {tab === 'recommended' && (
+        <div className="rounded-xl p-3 flex items-start gap-3" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)' }}>
+          <Sparkles className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm text-white font-medium">Jobs matched to your skills</p>
+            {expertise.length > 0
+              ? <p className="text-xs text-gray-400 mt-0.5">Based on: {expertise.slice(0, 5).join(', ')}{expertise.length > 5 ? ` +${expertise.length - 5} more` : ''}</p>
+              : <p className="text-xs text-gray-400 mt-0.5">Add skills in your <a href="/student/brand" className="text-primary-400 underline">Brand Profile</a> to get better matches</p>
+            }
+          </div>
+        </div>
+      )}
 
       {tab === 'browse' && (
         <div className="space-y-3">
@@ -171,6 +217,10 @@ export default function FreelancePage() {
           {jobs.map((job: any) => {
             const isOwner = (user as any)?._id === job.postedBy?._id
             const hasApplied = applied.has(job._id) || job.applicants?.includes((user as any)?._id)
+            // highlight skills matching user expertise
+            const matchedSkills = job.skills?.filter((s: string) =>
+              expertise.some(e => e.toLowerCase() === s.toLowerCase())
+            ) || []
             return (
               <div key={job._id} className="card hover:border-primary-500/20 transition-all">
                 <div className="flex items-start justify-between gap-4">
@@ -179,11 +229,21 @@ export default function FreelancePage() {
                       <h3 className="text-white font-bold">{job.title}</h3>
                       <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${LEVEL_COLORS[job.experienceLevel]}`}>{job.experienceLevel}</span>
                       <span className="text-xs text-gray-500 capitalize bg-dark-700 px-2 py-0.5 rounded-full">{job.category}</span>
+                      {matchedSkills.length > 0 && (
+                        <span className="text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> {matchedSkills.length} skill match
+                        </span>
+                      )}
                     </div>
                     <p className="text-gray-400 text-sm line-clamp-3 mb-3">{job.description}</p>
                     {job.skills?.length > 0 && (
                       <div className="flex gap-1 flex-wrap mb-3">
-                        {job.skills.map((s: string) => <span key={s} className="text-xs bg-dark-700 text-gray-300 px-2 py-0.5 rounded-full">{s}</span>)}
+                        {job.skills.map((s: string) => {
+                          const isMatch = expertise.some(e => e.toLowerCase() === s.toLowerCase())
+                          return (
+                            <span key={s} className={`text-xs px-2 py-0.5 rounded-full ${isMatch ? 'text-violet-300 bg-violet-500/20 border border-violet-500/30' : 'bg-dark-700 text-gray-300'}`}>{s}</span>
+                          )
+                        })}
                       </div>
                     )}
                     <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -198,7 +258,7 @@ export default function FreelancePage() {
                         <span className="text-primary-400 text-xs font-bold">{job.postedBy?.name?.[0]}</span>
                       </div>
                     </div>
-                    {!isOwner && tab === 'browse' && (
+                    {!isOwner && tab !== 'my-jobs' && (
                       <button onClick={() => applyMut.mutate(job._id)}
                         disabled={hasApplied || applyMut.isPending}
                         className={`text-sm px-4 py-2 rounded-xl font-medium transition-colors ${hasApplied ? 'bg-green-500/20 text-green-400 cursor-default' : 'btn-primary'}`}>
@@ -214,7 +274,10 @@ export default function FreelancePage() {
           {jobs.length === 0 && (
             <div className="text-center py-16 text-gray-500">
               <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No jobs found. Check back later or post your own!</p>
+              {tab === 'recommended'
+                ? <><p className="font-medium">No matching jobs found</p><p className="text-sm mt-1">Update your skills in <a href="/student/brand" className="text-primary-400 underline">Brand Profile</a> or <button onClick={() => setTab('browse')} className="text-primary-400 underline">browse all jobs</button></p></>
+                : <p>No jobs found. Check back later or post your own!</p>
+              }
             </div>
           )}
         </div>

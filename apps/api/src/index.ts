@@ -35,6 +35,15 @@ import goalRoutes from './routes/goals';
 import reminderRoutes from './routes/reminders';
 import projectRoutes from './routes/projects';
 import freelanceRoutes from './routes/freelance';
+import trulanceRoutes from './routes/trulance';
+import popupRoutes from './routes/popups';
+import siteContentRoutes from './routes/siteContent';
+import checkoutRoutes from './routes/checkout';
+import partnerRoutes from './routes/partner';
+import mentorRouter from './routes/mentor';
+import financeRouter from './routes/finance';
+import marketingRouter from './routes/marketing';
+import novaRouter, { bootstrapNovaCrons } from './routes/nova';
 
 dotenv.config();
 
@@ -44,7 +53,9 @@ const server = http.createServer(app);
 const allowedOrigins = [
   process.env.WEB_URL || 'https://peptly.in',
   process.env.ADMIN_URL || 'https://admin.peptly.in',
+  'https://trulance.peptly.in',
   'http://localhost:3000',
+  'http://localhost:3002',
   'http://localhost:3003',
 ];
 
@@ -52,10 +63,13 @@ export const io = new Server(server, {
   cors: { origin: allowedOrigins, credentials: true }
 });
 
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files as static assets
+app.use('/uploads', express.static('/var/www/trulearnix/uploads'));
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 app.use('/api/', limiter);
@@ -91,6 +105,15 @@ app.use('/api/goals', goalRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/freelance', freelanceRoutes);
+app.use('/api/trulance', trulanceRoutes);
+app.use('/api/popups', popupRoutes);
+app.use('/api/site-content', siteContentRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/partner', partnerRoutes);
+app.use('/api/mentor', mentorRouter);
+app.use('/api/finance', financeRouter);
+app.use('/api/marketing', marketingRouter);
+app.use('/api/nova', novaRouter);
 
 // Health
 app.get('/health', (_, res) => res.json({ status: 'ok', service: 'TureLearnix API', version: '2.1' }));
@@ -107,6 +130,7 @@ const start = async () => {
   await connectDB();
   await connectRedis();
   initSocketHandlers(io);
+  await bootstrapNovaCrons();
   server.listen(PORT, () => console.log(`TureLearnix API v2.1 running on port ${PORT}`));
 };
 

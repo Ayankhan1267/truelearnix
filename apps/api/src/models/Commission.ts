@@ -41,6 +41,8 @@ const CommissionSchema = new Schema<ICommission>({
 }, { timestamps: true });
 
 CommissionSchema.index({ earner: 1, status: 1 });
+CommissionSchema.index({ earner: 1, createdAt: -1 });
+CommissionSchema.index({ earner: 1, buyer: 1 });
 CommissionSchema.index({ packagePurchaseId: 1 });
 CommissionSchema.index({ buyer: 1 });
 CommissionSchema.index({ createdAt: -1 });

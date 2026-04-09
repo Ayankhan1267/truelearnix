@@ -24,8 +24,8 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-10 md:py-16">
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-8 md:gap-10 mb-12">
+      <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-6 md:gap-10 mb-8">
 
           {/* Brand */}
           <div className="col-span-2 sm:col-span-4 md:col-span-2">
@@ -58,7 +58,7 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {platformLinks.map(l => (
                 <li key={l}>
-                  <Link href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{l}</Link>
+                  <Link href={l === 'Become Mentor' ? '/become-mentor' : '#'} className="text-sm text-gray-500 hover:text-white transition-colors">{l}</Link>
                 </li>
               ))}
             </ul>

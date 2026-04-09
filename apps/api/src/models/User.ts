@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export type UserRole = 'superadmin' | 'admin' | 'manager' | 'mentor' | 'student';
+export type EmployeeDepartment = 'hr' | 'sales' | 'marketing' | 'content' | 'finance' | 'operations' | 'support' | 'tech' | 'general';
 export type PackageTier = 'free' | 'starter' | 'pro' | 'elite' | 'supreme';
 
 export const COMMISSION_RATES: Record<PackageTier, number> = {
@@ -57,6 +58,35 @@ export interface IUser extends Document {
   pushToken?: string;
   lastLogin?: Date;
   loginCount: number;
+  packageSuspended: boolean;
+  favoriteCourses: mongoose.Types.ObjectId[];
+  kyc?: {
+    pan?: string; panName?: string; panVerified?: boolean;
+    aadhar?: string; aadharName?: string; aadharVerified?: boolean;
+    bankAccount?: string; bankIfsc?: string; bankName?: string; bankHolderName?: string;
+    status: 'pending' | 'submitted' | 'verified' | 'rejected';
+    rejectionReason?: string;
+    submittedAt?: Date; verifiedAt?: Date;
+  };
+  department?: EmployeeDepartment;
+  employeeId?: string;
+  joiningDate?: Date;
+  permissions?: string[];
+  managerName?: string;
+  managerPhone?: string;
+  sponsorCode?: string;
+  mentorStatus?: 'pending' | 'approved' | 'rejected';
+  mentorApplication?: {
+    experience?: string;
+    expertise?: string[];
+    bio?: string;
+    linkedin?: string;
+    portfolio?: string;
+    appliedAt?: Date;
+    reviewedAt?: Date;
+    rejectionReason?: string;
+  };
+  assignedCourses?: { courseId: mongoose.Types.ObjectId; maxStudents?: number; assignedAt: Date }[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -104,6 +134,38 @@ const UserSchema = new Schema<IUser>({
   pushToken: String,
   lastLogin: Date,
   loginCount: { type: Number, default: 0 },
+  packageSuspended: { type: Boolean, default: false },
+  favoriteCourses: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
+  kyc: {
+    pan: String, panName: String, panVerified: { type: Boolean, default: false },
+    aadhar: String, aadharName: String, aadharVerified: { type: Boolean, default: false },
+    bankAccount: String, bankIfsc: String, bankName: String, bankHolderName: String,
+    status: { type: String, enum: ['pending','submitted','verified','rejected'], default: 'pending' },
+    rejectionReason: String, submittedAt: Date, verifiedAt: Date,
+  },
+  department: { type: String, enum: ['hr', 'sales', 'marketing', 'content', 'finance', 'operations', 'support', 'tech', 'general'] },
+  employeeId: { type: String, sparse: true },
+  joiningDate: Date,
+  permissions: [{ type: String }],
+  managerName: String,
+  managerPhone: String,
+  sponsorCode: String,
+  mentorStatus: { type: String, enum: ['pending', 'approved', 'rejected'] },
+  mentorApplication: {
+    experience: String,
+    expertise: [String],
+    bio: String,
+    linkedin: String,
+    portfolio: String,
+    appliedAt: Date,
+    reviewedAt: Date,
+    rejectionReason: String,
+  },
+  assignedCourses: [{
+    courseId: { type: Schema.Types.ObjectId, ref: 'Course' },
+    maxStudents: Number,
+    assignedAt: { type: Date, default: Date.now },
+  }],
 }, { timestamps: true });
 
 UserSchema.index({ affiliateCode: 1 });
@@ -111,6 +173,10 @@ UserSchema.index({ referredBy: 1 });
 UserSchema.index({ packageTier: 1, isAffiliate: 1 });
 UserSchema.index({ role: 1, isActive: 1 });
 UserSchema.index({ upline1: 1 });
+UserSchema.index({ upline2: 1 });
+UserSchema.index({ upline3: 1 });
+UserSchema.index({ isAffiliate: 1, totalEarnings: -1 });
+UserSchema.index({ mentorStatus: 1, role: 1 });
 
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

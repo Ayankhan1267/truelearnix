@@ -7,11 +7,15 @@ const router = Router();
 // Get all open jobs
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { category, search, experienceLevel } = req.query as any;
+    const { category, search, experienceLevel, skills } = req.query as any;
     const filter: any = { status: 'open' };
     if (category) filter.category = category;
     if (experienceLevel) filter.experienceLevel = experienceLevel;
     if (search) filter.title = { $regex: search, $options: 'i' };
+    if (skills) {
+      const skillArr = Array.isArray(skills) ? skills : skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      if (skillArr.length > 0) filter.skills = { $in: skillArr.map((s: string) => new RegExp(s, 'i')) };
+    }
     const jobs = await FreelanceJob.find(filter)
       .populate('postedBy', 'name avatar')
       .sort({ createdAt: -1 });

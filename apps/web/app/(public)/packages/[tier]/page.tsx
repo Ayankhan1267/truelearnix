@@ -144,7 +144,7 @@ function EarningsCalc({ rate, accentColor }: { rate: number; accentColor: string
 const FAQS = [
   { q: 'Can I upgrade my plan later?', a: 'Yes! You can upgrade anytime and only pay the difference.' },
   { q: 'Is there a money-back guarantee?', a: '30-day full refund, no questions asked.' },
-  { q: 'How does the Earn Program work?', a: 'Share your personal invite link. Every time someone joins through it, you earn income instantly — no selling required, just help others learn.' },
+  { q: 'How does the Partner Program work?', a: 'Share your personal partner link. Every time someone joins through it, you earn income instantly — no selling required, just help others learn skills.' },
   { q: 'Can I pay in EMI?', a: 'Yes, EMI options are available via Razorpay (3–12 months, 0% interest on select plans).' },
   { q: 'Do I get lifetime access?', a: 'Yes, all courses and materials are accessible for lifetime once enrolled.' },
 ]
@@ -167,7 +167,7 @@ export default function PackageDetailPage({ params }: { params: { tier: string }
   const [pkg, setPkg] = useState<any>(null)
   const [allPkgs, setAllPkgs] = useState<any[]>([])
   const [buying, setBuying] = useState(false)
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore()
   const router = useRouter()
   const cfg = TIER_CONFIG[params.tier] || TIER_CONFIG.pro
 
@@ -180,37 +180,10 @@ export default function PackageDetailPage({ params }: { params: { tier: string }
     }).catch(() => {})
   }, [params.tier])
 
-  const handleBuy = async () => {
-    if (!isAuthenticated()) return router.push('/register')
-    if (!pkg) return
-    setBuying(true)
-    try {
-      const orderRes = await packageAPI.createOrder({ packageId: pkg._id, tier: pkg.tier })
-      const { orderId, amount, currency, keyId } = orderRes.data
-      const script = document.createElement('script')
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-      document.body.appendChild(script)
-      script.onload = () => {
-        const rzp = new window.Razorpay({
-          key: keyId, amount, currency, order_id: orderId,
-          name: 'TruLearnix', description: `${pkg.name} Package`,
-          prefill: { name: user?.name, email: user?.email },
-          theme: { color: cfg.accentColor },
-          handler: async (response: any) => {
-            try {
-              await packageAPI.verify({ razorpayOrderId: orderId, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature })
-              toast.success(`🎉 Welcome to ${pkg.name}!`)
-              router.push('/student/dashboard')
-            } catch { toast.error('Payment verification failed') }
-          },
-          modal: { ondismiss: () => setBuying(false) }
-        })
-        rzp.open()
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Something went wrong')
-      setBuying(false)
-    }
+  const handleBuy = () => {
+    if (!_hasHydrated) return
+    if (!isAuthenticated()) return router.push(`/login?redirect=/checkout?type=package%26tier=${params.tier}`)
+    router.push(`/checkout?type=package&tier=${params.tier}`)
   }
 
   const price = pkg?.price || 0

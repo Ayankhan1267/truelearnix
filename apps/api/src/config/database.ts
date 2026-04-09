@@ -8,8 +8,8 @@ const seedPackages = async () => {
   await Package.insertMany([
     {
       name: 'Starter', tier: 'starter', price: 4999, commissionRate: 10,
-      description: 'Perfect to start your affiliate journey with basic tools and access.',
-      features: ['5 Courses Access', 'Community Access', '10% L1 Commission', 'Basic Support', 'Affiliate Dashboard'],
+      description: 'Perfect to start your partner journey with basic tools and access.',
+      features: ['5 Courses Access', 'Community Access', '10% L1 Commission', 'Basic Support', 'Partner Dashboard'],
       coursesAccess: 'limited', liveClassAccess: false, aiCoachAccess: false,
       jobEngineAccess: false, personalBrandAccess: false, mentorSupport: false,
       prioritySupport: false, emiAvailable: false, displayOrder: 1,

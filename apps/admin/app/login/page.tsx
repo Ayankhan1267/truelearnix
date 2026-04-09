@@ -33,6 +33,8 @@ export default function LoginPage() {
       localStorage.setItem('adminToken', authToken)
       localStorage.setItem('adminName', user?.name || 'Admin')
       localStorage.setItem('adminRole', user?.role || 'admin')
+      localStorage.setItem('adminDept', user?.department || '')
+      localStorage.setItem('adminPermissions', JSON.stringify(user?.permissions || []))
       toast.success(`Welcome back, ${user?.name}!`)
       router.push('/dashboard')
     } catch (err: any) {

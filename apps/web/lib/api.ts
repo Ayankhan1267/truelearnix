@@ -77,6 +77,11 @@ export const userAPI = {
   me: () => api.get('/users/me'),
   update: (data: any) => api.put('/users/me', data),
   enrolledCourses: () => api.get('/users/enrolled-courses'),
+  availableCourses: () => api.get('/users/available-courses'),
+  enrollFree: (courseId: string) => api.post(`/users/enroll-free/${courseId}`),
+  favorites: () => api.get('/users/favorites'),
+  toggleFavorite: (courseId: string) => api.post(`/users/favorites/${courseId}`),
+  announcements: () => api.get('/users/announcements'),
   notifications: () => api.get('/users/notifications'),
   markNotificationsRead: () => api.patch('/users/notifications/read'),
 };
@@ -91,6 +96,10 @@ export const classAPI = {
   start: (id: string) => api.patch(`/classes/${id}/start`),
   end: (id: string) => api.patch(`/classes/${id}/end`),
   cancel: (id: string) => api.delete(`/classes/${id}`),
+  detail: (id: string) => api.get(`/classes/${id}/detail`),
+  zoomSignature: (id: string) => api.get(`/classes/${id}/zoom-signature`),
+  attendancePing: (id: string) => api.post(`/classes/${id}/attendance/ping`),
+  myAttendance: (id: string) => api.get(`/classes/${id}/attendance/me`),
 };
 
 // Quizzes
@@ -194,6 +203,22 @@ export const mentorAPI = {
   deleteLesson: (courseId: string, lessonId: string) => api.delete(`/courses/${courseId}/lessons/${lessonId}`),
   myQuizzes: () => api.get('/quizzes/my'),
   earnings: () => api.get('/wallet'),
+  apply: (data: any) => api.post('/auth/mentor-apply', data),
+  dashboard: () => api.get('/mentor/dashboard'),
+  courses: () => api.get('/mentor/courses'),
+  courseStudents: (courseId: string) => api.get(`/mentor/courses/${courseId}/students`),
+  profile: () => api.get('/mentor/profile'),
+  updateProfile: (data: any) => api.put('/mentor/profile', data),
+};
+
+// Admin Mentor API
+export const adminMentorAPI = {
+  list: (params?: any) => api.get('/admin/mentors', { params }),
+  approve: (id: string) => api.patch(`/admin/mentors/${id}/approve`),
+  reject: (id: string, reason: string) => api.patch(`/admin/mentors/${id}/reject`, { reason }),
+  assignCourse: (id: string, courseId: string, maxStudents?: number) => api.post(`/admin/mentors/${id}/assign-course`, { courseId, maxStudents }),
+  unassignCourse: (id: string, courseId: string) => api.delete(`/admin/mentors/${id}/assign-course/${courseId}`),
+  givePackage: (id: string, packageTier: string) => api.patch(`/admin/mentors/${id}/give-package`, { packageTier }),
 };
 
 // Projects
@@ -206,6 +231,23 @@ export const projectAPI = {
   delete: (id: string) => api.delete(`/projects/${id}`),
 };
 
+// Partner Panel
+export const partnerAPI = {
+  dashboard: () => api.get('/partner/dashboard'),
+  earnings: () => api.get('/partner/earnings'),
+  leaderboard: () => api.get('/partner/leaderboard'),
+  mType: () => api.get('/partner/m-type'),
+  referrals: (params?: any) => api.get('/partner/referrals', { params }),
+  crm: (params?: any) => api.get('/partner/crm', { params }),
+  addLead: (data: any) => api.post('/partner/crm/lead', data),
+  training: () => api.get('/partner/training'),
+  kyc: () => api.get('/partner/kyc'),
+  submitKyc: (data: any) => api.post('/partner/kyc', data),
+  link: () => api.get('/partner/link'),
+  qualification: () => api.get('/partner/qualification'),
+  achievements: () => api.get('/partner/achievements'),
+};
+
 // Freelance
 export const freelanceAPI = {
   all: (params?: any) => api.get('/freelance', { params }),
@@ -213,5 +255,21 @@ export const freelanceAPI = {
   create: (data: any) => api.post('/freelance', data),
   apply: (id: string) => api.post(`/freelance/${id}/apply`),
   update: (id: string, data: any) => api.patch(`/freelance/${id}`, data),
+};
+
+// Checkout
+export const checkoutAPI = {
+  getItem: (params: { type: 'package' | 'course'; tier?: string; courseId?: string }) =>
+    api.get('/checkout/item', { params }),
+  validateCode: (data: { code: string; codeType: 'promo' | 'coupon'; type: string; tier?: string; courseId?: string; amount: number }) =>
+    api.post('/checkout/validate-code', data),
+  createOrder: (data: { type: 'package' | 'course'; tier?: string; courseId?: string; paymentMode?: 'full' | 'emi'; promoCode?: string; couponCode?: string }) =>
+    api.post('/checkout/create-order', data),
+  verify: (data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string; type: string; tier?: string; courseId?: string; paymentMode?: string; promoCode?: string; couponCode?: string }) =>
+    api.post('/checkout/verify', data),
+  getEmiStatus: () => api.get('/checkout/emi'),
+  payEmi: (data: { installmentId: string }) => api.post('/checkout/emi/pay', data),
+  verifyEmi: (data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string; installmentId: string }) =>
+    api.post('/checkout/emi/verify', data),
 };
 

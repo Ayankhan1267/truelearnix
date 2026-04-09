@@ -132,12 +132,12 @@ export default function PackagesPage() {
         {packages.length > 0 && (
           <div className="card">
             <h2 className="text-lg font-bold text-white mb-6">Commission Matrix</h2>
-            <p className="text-gray-400 text-sm mb-4">L1 commission % earned by referrer based on their package tier</p>
+            <p className="text-gray-400 text-sm mb-4">L1 commission % earned by partner based on their package tier</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left pb-3 pr-6 text-gray-400 font-medium">Referrer Tier</th>
+                    <th className="text-left pb-3 pr-6 text-gray-400 font-medium">Partner Tier</th>
                     <th className="text-left pb-3 px-4 text-gray-400 font-medium">Price</th>
                     <th className="text-left pb-3 px-4 text-gray-400 font-medium">L1 Rate</th>
                     <th className="text-left pb-3 px-4 text-gray-400 font-medium">L2 Rate</th>

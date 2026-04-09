@@ -16,7 +16,7 @@ const schema = z.object({
   phone: z.string().min(10, 'Invalid phone').optional().or(z.literal('')),
   password: z.string().min(6, 'Min 6 characters'),
   confirmPassword: z.string(),
-  role: z.enum(['student', 'mentor']),
+  role: z.literal('student'),
 }).refine(d => d.password === d.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] })
 
 type FormData = z.infer<typeof schema>
@@ -41,13 +41,13 @@ export default function RegisterPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { role: searchParams.get('role') === 'mentor' ? 'mentor' : 'student' }
+    defaultValues: { role: 'student' }
   })
 
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true)
-      const res = await authAPI.register({ ...data, referralCode: ref })
+      const res = await authAPI.register({ ...data, role: 'student', referralCode: ref })
       setUserId(res.data.userId)
       toast.success('OTP sent to your email!')
     } catch (err: any) {
@@ -144,14 +144,6 @@ export default function RegisterPage() {
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Phone (optional)</label>
               <input {...register('phone')} placeholder="+91 98765 43210" className="input" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">I want to</label>
-              <select {...register('role')} className="input">
-                <option value="student">Learn (Student)</option>
-                <option value="mentor">Teach & Earn (Mentor)</option>
-              </select>
             </div>
 
             <div>

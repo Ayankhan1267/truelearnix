@@ -1,10 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, Eye, EyeOff, Loader2 } from 'lucide-react'
 import Logo from '@/components/ui/Logo'
 import { authAPI } from '@/lib/api'
@@ -18,11 +18,12 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-export default function LoginPage() {
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAuthStore()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
@@ -33,7 +34,10 @@ export default function LoginPage() {
       const { user, accessToken, refreshToken } = res.data
       setAuth(user, accessToken, refreshToken)
       toast.success(`Welcome back, ${user.name}!`)
-      const dashPath = user.role === 'admin' ? '/admin' : user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard'
+      const redirect = searchParams.get('redirect')
+      const dashPath = redirect
+        ? decodeURIComponent(redirect)
+        : user.role === 'admin' ? '/admin' : user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard'
       router.push(dashPath)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed')
@@ -90,5 +94,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }

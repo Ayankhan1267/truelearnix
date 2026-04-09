@@ -1,14 +1,44 @@
 'use client'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { courseAPI } from '@/lib/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { courseAPI, userAPI } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { Search, Filter, Star, Users, ChevronDown } from 'lucide-react'
+import { Search, Star, Users, Heart } from 'lucide-react'
 import Link from 'next/link'
 
 const categories = ['All', 'Web Development', 'Data Science', 'Mobile Dev', 'UI/UX Design', 'Digital Marketing', 'Cloud & DevOps', 'Cybersecurity', 'AI/ML']
 const levels = ['All', 'beginner', 'intermediate', 'advanced']
+
+function FavoriteBtn({ courseId }: { courseId: string }) {
+  const { isAuthenticated } = useAuthStore()
+  const qc = useQueryClient()
+  const { data: favData } = useQuery({
+    queryKey: ['favorites'],
+    queryFn: () => userAPI.favorites().then(r => r.data.favorites),
+    enabled: isAuthenticated(),
+    staleTime: 60000,
+  })
+  const isFav = (favData || []).some((c: any) => c._id === courseId)
+  const toggleMut = useMutation({
+    mutationFn: () => userAPI.toggleFavorite(courseId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['favorites'] }),
+  })
+  if (!isAuthenticated()) return null
+  return (
+    <button
+      onClick={e => { e.preventDefault(); toggleMut.mutate() }}
+      disabled={toggleMut.isPending}
+      className={`absolute top-2 left-2 w-8 h-8 rounded-xl backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 z-10 ${
+        isFav ? 'bg-rose-500/90' : 'bg-black/50 hover:bg-rose-500/70'
+      }`}
+      title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+    >
+      <Heart className={`w-4 h-4 ${isFav ? 'text-white fill-white' : 'text-white'}`} />
+    </button>
+  )
+}
 
 export default function CoursesPage() {
   const [search, setSearch] = useState('')
@@ -83,6 +113,7 @@ export default function CoursesPage() {
                 className="card group hover:scale-[1.02] transition-all cursor-pointer">
                 <div className="relative aspect-video overflow-hidden rounded-xl mb-3">
                   <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <FavoriteBtn courseId={course._id} />
                   <span className={`absolute top-2 right-2 badge text-xs ${course.level === 'beginner' ? 'bg-green-500/80 text-white' : course.level === 'intermediate' ? 'bg-yellow-500/80 text-white' : 'bg-red-500/80 text-white'}`}>
                     {course.level}
                   </span>

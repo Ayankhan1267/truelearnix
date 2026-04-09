@@ -64,7 +64,7 @@ router.post('/ai-coach', protect, async (req: any, res) => {
     if (process.env.OPENAI_API_KEY) {
       const { default: OpenAI } = await import('openai');
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const systemPrompt = `You are TureLearnix AI Coach — an expert mentor for digital marketing, affiliate marketing, and online business.
+      const systemPrompt = `You are TureLearnix AI Coach — an expert mentor for digital marketing, skill-based earning, and online business.
 The user is a ${req.user.packageTier || 'free'} tier member on the TureLearnix platform.
 Be concise, practical, and motivating. Answer in the language the user writes in (Hindi or English).
 Context: ${context || 'General guidance'}`;
@@ -83,8 +83,8 @@ Context: ${context || 'General guidance'}`;
 
     // Placeholder responses when OpenAI not configured
     const placeholders: Record<string, string> = {
-      default: 'Great question! Focus on building genuine value for your audience. Consistency and authenticity are the keys to long-term success in affiliate marketing.',
-      commission: 'Your commission rate increases with your package tier. Upgrade to Elite or Supreme to unlock 22-30% on Level 1 referrals!',
+      default: 'Great question! Focus on building genuine value for your audience. Consistency and authenticity are the keys to long-term success in skill-based earning.',
+      commission: 'Your commission rate increases with your package tier. Upgrade to Elite or Supreme to unlock 22-30% on Level 1 partners!',
       course: 'Start with the fundamentals course, then move to the advanced digital marketing modules. Each completed lesson unlocks more content.',
       withdraw: 'Withdrawals are processed within 24-48 hours. Minimum withdrawal amount is ₹500.',
     };
@@ -96,6 +96,84 @@ Context: ${context || 'General guidance'}`;
       : placeholders.default;
 
     res.json({ success: true, reply, model: 'placeholder' });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET /api/users/available-courses — courses available to enroll via package
+router.get('/available-courses', protect, async (req: any, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('packageTier');
+    if (!user || user.packageTier === 'free') {
+      return res.json({ success: true, courses: [], packageTier: 'free' });
+    }
+    const Course = (await import('../models/Course')).default;
+    const enrolledCourses = await Enrollment.find({ student: req.user._id }).select('course');
+    const enrolledIds = enrolledCourses.map(e => e.course.toString());
+    const courses = await Course.find({ status: 'published' })
+      .select('title thumbnail category level price lessonsCount enrolledCount mentor slug')
+      .populate('mentor', 'name avatar');
+    const available = courses.filter(c => !enrolledIds.includes(c._id.toString()));
+    res.json({ success: true, courses: available, packageTier: user.packageTier });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// POST /api/users/enroll-free/:courseId — free enroll via package
+router.post('/enroll-free/:courseId', protect, async (req: any, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('packageTier');
+    if (!user || user.packageTier === 'free') {
+      return res.status(403).json({ success: false, message: 'Upgrade your plan to access this course' });
+    }
+    const Course = (await import('../models/Course')).default;
+    const course = await Course.findOne({ _id: req.params.courseId, status: 'published' });
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+    const existing = await Enrollment.findOne({ student: req.user._id, course: req.params.courseId });
+    if (existing) return res.status(400).json({ success: false, message: 'Already enrolled' });
+    await Enrollment.create({ student: req.user._id, course: req.params.courseId, amount: 0, paymentId: `pkg_${user.packageTier}` });
+    await Course.findByIdAndUpdate(req.params.courseId, { $inc: { enrolledCount: 1 } });
+    res.json({ success: true, message: 'Enrolled successfully!' });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET /api/users/favorites — get favorite courses
+router.get('/favorites', protect, async (req: any, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('favoriteCourses')
+      .populate('favoriteCourses', 'title thumbnail category level price slug enrolledCount rating mentor');
+    res.json({ success: true, favorites: user?.favoriteCourses || [] });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// POST /api/users/favorites/:courseId — toggle favorite
+router.post('/favorites/:courseId', protect, async (req: any, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('favoriteCourses');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    const idx = user.favoriteCourses.findIndex(id => id.toString() === req.params.courseId);
+    if (idx > -1) {
+      user.favoriteCourses.splice(idx, 1);
+    } else {
+      user.favoriteCourses.push(new (require('mongoose').Types.ObjectId)(req.params.courseId));
+    }
+    await user.save();
+    res.json({ success: true, isFavorite: idx === -1, count: user.favoriteCourses.length });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET /api/users/announcements — active announcements for learners
+router.get('/announcements', protect, async (_req, res) => {
+  try {
+    const Popup = (await import('../models/Popup')).default;
+    const now = new Date();
+    const announcements = await Popup.find({
+      type: 'announcement',
+      isActive: true,
+      $and: [
+        { $or: [{ startDate: { $lte: now } }, { startDate: null }] },
+        { $or: [{ endDate: { $gte: now } }, { endDate: null }] },
+      ],
+    }).sort({ priority: -1, createdAt: -1 }).limit(20);
+    res.json({ success: true, announcements });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 

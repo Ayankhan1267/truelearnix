@@ -6,7 +6,7 @@ import { Play, Star, Users, Award, BookOpen, Video, Zap, TrendingUp, CheckCircle
 const features = [
   'Live Interactive Classes Daily',
   'AI-Generated Certificates',
-  'Earn While You Learn & Grow',
+  'Earn via Affiliate Program',
   '500+ Expert-Led Courses',
 ]
 
@@ -14,7 +14,7 @@ const tickerItems = [
   '🔥 New Batch Starting Monday',
   '⚡ 247 Students Joined Today',
   '🏆 50,000+ Learners Trust Us',
-  '💰 ₹2Cr+ Income Paid to Students',
+  '💰 ₹2Cr+ Affiliate Earnings Paid',
   '🎓 20,000+ Certificates Issued',
   '🌟 4.9/5 Platform Rating',
 ]
@@ -82,7 +82,7 @@ export default function HeroSection() {
               <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                 className="text-lg text-gray-400 mb-8 leading-relaxed max-w-xl">
                 Interactive live classes, AI certificates &amp; a{' '}
-                <span className="text-fuchsia-400 font-bold">built-in earn program</span> — learn skills,
+                <span className="text-fuchsia-400 font-bold">built-in affiliate system</span> — learn skills,
                 earn money &amp; transform your career.
               </motion.p>
 
@@ -160,26 +160,18 @@ export default function HeroSection() {
                   </span>
                 </div>
                 {/* Video area mini */}
-                <div className="relative flex items-center justify-center py-6 px-4"
-                  style={{ background: 'linear-gradient(135deg, #0d1120, #080c18)' }}>
-                  <div className="absolute inset-0 opacity-15"
-                    style={{ backgroundImage:'linear-gradient(rgba(99,102,241,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.5) 1px,transparent 1px)', backgroundSize:'24px 24px' }} />
-                  <div className="relative z-10 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background:'rgba(124,58,237,0.3)', border:'1.5px solid rgba(124,58,237,0.5)', boxShadow:'0 0 40px rgba(124,58,237,0.4)' }}>
-                      <Play className="w-7 h-7 text-white ml-1" />
-                    </div>
-                    <div>
-                      <p className="text-white font-black text-sm">React Hooks Deep Dive</p>
-                      <p className="text-gray-500 text-xs">Session 8 / 24</p>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <Users className="w-3 h-3 text-violet-400" />
-                        <span className="text-gray-400 text-xs font-bold">247 watching</span>
-                        <span className="text-gray-600">•</span>
-                        <Flame className="w-3 h-3 text-orange-400" />
-                        <span className="text-gray-400 text-xs">Trending</span>
-                      </div>
-                    </div>
+                <div className="relative aspect-video" style={{ background: '#000' }}>
+                  <video
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src="/hero-video.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                  <div className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-bold text-gray-300 z-10"
+                    style={{ background:'rgba(0,0,0,0.65)', backdropFilter:'blur(8px)' }}>
+                    <Users className="w-3 h-3 text-violet-400" />247 watching
                   </div>
                 </div>
                 {/* Mini stats strip */}
@@ -233,25 +225,21 @@ export default function HeroSection() {
                   </div>
 
                   {/* Video area */}
-                  <div className="relative aspect-video flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #0d1120, #080c18)' }}>
-                    <div className="absolute inset-0 opacity-20"
-                      style={{ backgroundImage:'linear-gradient(rgba(99,102,241,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.5) 1px,transparent 1px)', backgroundSize:'28px 28px' }} />
-                    {/* Play btn */}
-                    <div className="relative z-10 text-center">
-                      <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-3"
-                        style={{ background:'rgba(124,58,237,0.3)', border:'1.5px solid rgba(124,58,237,0.5)', boxShadow:'0 0 50px rgba(124,58,237,0.4)' }}>
-                        <Play className="w-9 h-9 text-white ml-1" />
-                      </div>
-                      <p className="text-gray-400 text-sm font-semibold">React Hooks Deep Dive</p>
-                      <p className="text-gray-600 text-xs mt-1">Session 8 / 24</p>
-                    </div>
+                  <div className="relative aspect-video" style={{ background: '#000' }}>
+                    <video
+                      className="absolute inset-0 w-full h-full object-cover"
+                      src="/hero-video.mp4"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                    />
                     {/* Watchers */}
-                    <div className="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-300"
+                    <div className="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-300 z-10"
                       style={{ background:'rgba(0,0,0,0.65)', backdropFilter:'blur(8px)' }}>
                       <Users className="w-3.5 h-3.5 text-violet-400" />247 watching
                     </div>
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs text-gray-400"
+                    <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs text-gray-400 z-10"
                       style={{ background:'rgba(0,0,0,0.65)', backdropFilter:'blur(8px)' }}>
                       <Flame className="w-3 h-3 text-orange-400" />Trending
                     </div>
@@ -296,7 +284,7 @@ export default function HeroSection() {
                   </div>
                   <div>
                     <p className="text-white font-black text-sm">₹15,000</p>
-                    <p className="text-gray-500 text-xs">Income Earned</p>
+                    <p className="text-gray-500 text-xs">Affiliate Earned</p>
                   </div>
                 </div>
               </div>
@@ -324,7 +312,7 @@ export default function HeroSection() {
               { icon:Users,    val:'50K+',  label:'Active Learners',    glowColor:'rgba(124,58,237,0.2)',  iconColor:'text-violet-400'  },
               { icon:BookOpen, val:'500+',  label:'Expert Courses',     glowColor:'rgba(99,102,241,0.2)',  iconColor:'text-indigo-400'  },
               { icon:Award,    val:'20K+',  label:'Certificates Issued',glowColor:'rgba(245,158,11,0.2)', iconColor:'text-amber-400'   },
-              { icon:Zap,      val:'₹2Cr+', label:'Partner Earnings',   glowColor:'rgba(16,185,129,0.2)', iconColor:'text-green-400'   },
+              { icon:Zap,      val:'₹2Cr+', label:'Affiliate Earnings', glowColor:'rgba(16,185,129,0.2)', iconColor:'text-green-400'   },
             ].map((s,i) => (
               <div key={i}
                 className="flex items-center gap-3 rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:-translate-y-1 cursor-default group"

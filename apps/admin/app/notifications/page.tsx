@@ -9,7 +9,7 @@ const AUDIENCES = [
   { value: 'all', label: 'All Users' },
   { value: 'students', label: 'Students Only' },
   { value: 'mentors', label: 'Mentors Only' },
-  { value: 'affiliates', label: 'Affiliates' },
+  { value: 'affiliates', label: 'Partners' },
   { value: 'starter', label: 'Starter Tier' },
   { value: 'pro', label: 'Pro Tier' },
   { value: 'elite', label: 'Elite Tier' },
