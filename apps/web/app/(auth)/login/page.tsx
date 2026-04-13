@@ -37,7 +37,11 @@ function LoginForm() {
       const redirect = searchParams.get('redirect')
       const dashPath = redirect
         ? decodeURIComponent(redirect)
-        : user.role === 'admin' ? '/admin' : user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard'
+        : user.role === 'admin' || user.role === 'superadmin' ? '/admin'
+        : user.role === 'mentor' ? '/mentor/dashboard'
+        : user.role === 'manager' ? '/manager/dashboard'
+        : user.role === 'salesperson' ? '/sales/dashboard'
+        : '/student/dashboard'
       router.push(dashPath)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed')

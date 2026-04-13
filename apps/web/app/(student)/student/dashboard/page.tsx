@@ -173,7 +173,11 @@ export default function LearnerDashboard() {
   const completed = enrollments?.filter((e: any) => e.progressPercent === 100)?.length || 0
   const inProgress = enrollments?.filter((e: any) => e.progressPercent > 0 && e.progressPercent < 100) || []
   const tier = (user as any)?.packageTier || 'free'
-  const isPaid = tier !== 'free'
+  // enrollments=undefined means still loading — don't show paywall yet
+  const enrollmentsLoaded = enrollments !== undefined
+  const isPaid = tier !== 'free' || !!(user as any)?.isAffiliate || !!user?.enrollmentCount
+    || !enrollmentsLoaded  // treat as paid while loading
+    || (enrollments && enrollments.length > 0)
   const available = availableData?.courses || []
   const announcements = annData?.announcements || []
   const favorites = favData || []

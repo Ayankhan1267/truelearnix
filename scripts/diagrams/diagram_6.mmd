@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant User
+    participant Web as peptly.in
+    participant API as api.peptly.in
+    participant Razorpay
+    participant MongoDB
+
+    User->>Web: Select Package / Upgrade
+    Web->>API: POST /api/checkout/create-order
+    API->>Razorpay: Create Order
+    Razorpay-->>API: order_id
+    API-->>Web: order_id + key
+    Web->>Razorpay: Open Payment Modal
+    Razorpay-->>Web: payment_id + signature
+    Web->>API: POST /api/checkout/verify
+    API->>Razorpay: Verify Signature
+    API->>MongoDB: Update User packageTier
+    API->>MongoDB: Create PackagePurchase + Commission
+    API-->>Web: Success
+    Web-->>User: Access Unlocked ✅

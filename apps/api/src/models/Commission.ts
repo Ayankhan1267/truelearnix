@@ -15,7 +15,9 @@ export interface ICommission extends Document {
   saleAmount: number;
   commissionAmount: number;
   // Reference
-  packagePurchaseId: mongoose.Types.ObjectId;
+  packagePurchaseId?: mongoose.Types.ObjectId;
+  paymentId?: mongoose.Types.ObjectId; // for course purchases
+  saleType?: 'package' | 'course'; // to distinguish commission source
   // Status
   status: 'pending' | 'approved' | 'paid' | 'rejected';
   paidAt?: Date;
@@ -34,7 +36,9 @@ const CommissionSchema = new Schema<ICommission>({
   levelRate: { type: Number, required: true },
   saleAmount: { type: Number, required: true },
   commissionAmount: { type: Number, required: true },
-  packagePurchaseId: { type: Schema.Types.ObjectId, ref: 'PackagePurchase', required: true },
+  packagePurchaseId: { type: Schema.Types.ObjectId, ref: 'PackagePurchase', required: false },
+  paymentId: { type: Schema.Types.ObjectId, ref: 'Payment', required: false },
+  saleType: { type: String, enum: ['package', 'course'], default: 'package' },
   status: { type: String, enum: ['pending', 'approved', 'paid', 'rejected'], default: 'approved' },
   paidAt: Date,
   rejectionReason: String,

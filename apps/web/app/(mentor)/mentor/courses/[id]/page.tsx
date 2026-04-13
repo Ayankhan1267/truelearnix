@@ -1,12 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { courseAPI, mentorAPI } from '@/lib/api'
+import { courseAPI, mentorAPI, materialAPI } from '@/lib/api'
 import {
   Plus, Trash2, Send, Loader2, BookOpen, Video, FileText,
   CheckCircle, Layers, PlayCircle, ClipboardList, Calendar,
   Clock, Users, ChevronRight, BarChart2, ArrowLeft, Eye,
-  FileCheck, Download
+  FileCheck, Download, FileDown, Link2, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
@@ -25,7 +25,7 @@ const BATCH_COLOR: Record<string, string> = {
   full: 'bg-blue-500/20 text-blue-400',
 }
 
-type Tab = 'curriculum' | 'batches' | 'sessions' | 'assignments'
+type Tab = 'curriculum' | 'batches' | 'sessions' | 'assignments' | 'notes'
 
 export default function MentorCourseDetail({ params }: { params: { id: string } }) {
   const { id } = params
@@ -39,6 +39,10 @@ export default function MentorCourseDetail({ params }: { params: { id: string } 
   // ── Assignment state ───────────────────────────────────────────────────────
   const [addingAssignment, setAddingAssignment] = useState(false)
   const [assignForm, setAssignForm] = useState({ title: '', description: '', dueDate: '', maxScore: '100' })
+
+  // ── Notes state ────────────────────────────────────────────────────────────
+  const [addingNote, setAddingNote] = useState(false)
+  const [noteForm, setNoteForm] = useState({ title: '', url: '', description: '', type: 'pdf' })
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const { data: courseData, isLoading: courseLoading } = useQuery({
@@ -62,6 +66,28 @@ export default function MentorCourseDetail({ params }: { params: { id: string } 
     queryKey: ['mentor-course-assignments', id],
     queryFn: () => mentorAPI.courseAssignments(id).then(r => r.data.assignments),
     enabled: tab === 'assignments',
+  })
+
+  const { data: notesData, isLoading: notesLoading } = useQuery({
+    queryKey: ['mentor-course-notes', id],
+    queryFn: () => materialAPI.courseMaterials(id).then(r => r.data.data),
+    enabled: tab === 'notes',
+  })
+
+  const addNoteMutation = useMutation({
+    mutationFn: (data: any) => materialAPI.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mentor-course-notes', id] })
+      setNoteForm({ title: '', url: '', description: '', type: 'pdf' })
+      setAddingNote(false)
+      toast.success('Note added!')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
+  })
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) => materialAPI.delete(noteId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mentor-course-notes', id] }); toast.success('Deleted') },
   })
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -144,6 +170,7 @@ export default function MentorCourseDetail({ params }: { params: { id: string } 
     { key: 'batches', label: 'Batches', icon: Layers },
     { key: 'sessions', label: 'Sessions', icon: PlayCircle },
     { key: 'assignments', label: 'Assignments', icon: ClipboardList },
+    { key: 'notes', label: 'Notes', icon: FileDown },
   ]
 
   return (
@@ -551,6 +578,114 @@ export default function MentorCourseDetail({ params }: { params: { id: string } 
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* ── TAB: Notes ── */}
+      {tab === 'notes' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">Batch Notes & Resources</h2>
+            <button onClick={() => setAddingNote(!addingNote)} className="btn-primary flex items-center gap-2 text-sm">
+              <Plus className="w-4 h-4" /> Add Note
+            </button>
+          </div>
+
+          {addingNote && (
+            <div className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Add Study Material</h3>
+                <button onClick={() => setAddingNote(false)}><X className="w-4 h-4 text-gray-400" /></button>
+              </div>
+              <input
+                value={noteForm.title}
+                onChange={e => setNoteForm(f => ({ ...f, title: e.target.value }))}
+                className="input text-sm" placeholder="Title * (e.g. Python Variables Notes)" />
+              <input
+                value={noteForm.url}
+                onChange={e => setNoteForm(f => ({ ...f, url: e.target.value }))}
+                className="input text-sm" placeholder="URL / Link * (Google Drive, PDF link, etc.)" />
+              <textarea
+                value={noteForm.description}
+                onChange={e => setNoteForm(f => ({ ...f, description: e.target.value }))}
+                className="input text-sm resize-none" rows={2}
+                placeholder="Brief description (optional)" />
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Type</label>
+                <select value={noteForm.type} onChange={e => setNoteForm(f => ({ ...f, type: e.target.value }))}
+                  className="input text-sm">
+                  <option value="pdf">PDF</option>
+                  <option value="doc">Word Doc</option>
+                  <option value="video">Video</option>
+                  <option value="link">Link</option>
+                  <option value="image">Image</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (!noteForm.title || !noteForm.url) return toast.error('Title and URL required')
+                    addNoteMutation.mutate({ ...noteForm, courseId: id, isPublic: false })
+                  }}
+                  disabled={addNoteMutation.isPending}
+                  className="btn-primary text-sm flex items-center gap-2">
+                  {addNoteMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Add
+                </button>
+                <button onClick={() => setAddingNote(false)} className="btn-outline text-sm">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {notesLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-primary-400" /></div>
+          ) : !notesData?.length ? (
+            <div className="card text-center py-12">
+              <FileDown className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+              <p className="text-gray-400 text-sm">No notes uploaded yet.</p>
+              <p className="text-gray-500 text-xs mt-1">Add PDF notes, links or documents that students can download.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {notesData.map((m: any) => {
+                const typeColor: Record<string, string> = {
+                  pdf: 'text-red-400 bg-red-500/15', video: 'text-blue-400 bg-blue-500/15',
+                  doc: 'text-yellow-400 bg-yellow-500/15', link: 'text-green-400 bg-green-500/15',
+                  image: 'text-purple-400 bg-purple-500/15',
+                }
+                return (
+                  <div key={m._id} className="card flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${typeColor[m.type] || 'text-gray-400 bg-gray-500/15'}`}>
+                      <FileDown className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-semibold text-sm">{m.title}</h3>
+                      {m.description && <p className="text-gray-500 text-xs mt-0.5 line-clamp-2">{m.description}</p>}
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                        <span className="uppercase font-medium">{m.type}</span>
+                        <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{m.downloadCount} downloads</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <a href={m.url} target="_blank" rel="noreferrer"
+                        className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-primary-500/10">
+                        <Link2 className="w-3.5 h-3.5" /> Open
+                      </a>
+                      <button onClick={() => { if (confirm('Delete this note?')) deleteNoteMutation.mutate(m._id) }}
+                        className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-500/10 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <div className="bg-dark-700 rounded-xl p-4 text-xs text-gray-500 flex items-start gap-2">
+            <FileText className="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-600" />
+            <p>Upload your PDF notes to Google Drive or any hosting, then paste the shareable link here. Enrolled students will be able to view and download these materials from their course page.</p>
+          </div>
         </div>
       )}
     </div>

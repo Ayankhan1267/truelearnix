@@ -27,7 +27,7 @@ export interface IPackagePurchase extends Document {
 const PackagePurchaseSchema = new Schema<IPackagePurchase>({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   package: { type: Schema.Types.ObjectId, ref: 'Package', required: true },
-  packageTier: { type: String, required: true },
+  packageTier: { type: String, default: '' },
   amount: { type: Number, required: true },
   gstAmount: { type: Number, default: 0 },
   totalAmount: { type: Number, required: true },

@@ -151,12 +151,11 @@ export const verifyPackagePayment = async (req: AuthRequest, res: Response) => {
 };
 
 async function creditMLMCommissions(purchase: any, buyer: any) {
-  // RULE: Commission % = earner's OWN tier rate (not buyer's tier rate)
-  // Level 1 = buyer's upline1 (direct referrer) at their tier %
-  // Level 2 = buyer's upline2 at fixed 5%
-  // Level 3 = buyer's upline3 at fixed 2%
-
   const saleAmount = purchase.amount; // base price without GST
+
+  // Load the sold package to get admin-configured commission matrix
+  const soldPackage = await Package.findById(purchase.package)
+    .select('_id name tier price partnerEarnings commissionRate commissionRateType commissionLevel2 commissionLevel2Type commissionLevel3 commissionLevel3Type');
 
   // Resolve uplines from buyer's referral chain
   const uplines: { userId: any; level: 1 | 2 | 3 }[] = [];
@@ -193,23 +192,61 @@ async function creditMLMCommissions(purchase: any, buyer: any) {
     const earner = await User.findById(upline.userId);
     if (!earner || !earner.isAffiliate) continue;
 
-    let levelRate: number;
-    if (upline.level === 1) {
-      levelRate = COMMISSION_RATES[earner.packageTier as PackageTier]; // earner's own tier %
-    } else if (upline.level === 2) {
-      levelRate = 5; // fixed
+    let commissionAmount = 0;
+    let levelRate = 0;
+
+    if (soldPackage) {
+      if (upline.level === 1) {
+        // Find earner's own package to match in partnerEarnings matrix
+        const earnerPkg = await Package.findOne({
+          $or: [{ tier: earner.packageTier }, { _id: earner.packageTier }],
+        }).select('_id');
+
+        const matrixEntry = earnerPkg
+          ? (soldPackage as any).partnerEarnings?.find(
+              (r: any) => r.earnerTier?.toString() === earnerPkg._id?.toString()
+            )
+          : null;
+
+        if (matrixEntry && matrixEntry.value > 0) {
+          commissionAmount = matrixEntry.type === 'percentage'
+            ? Math.round(saleAmount * matrixEntry.value / 100)
+            : Math.round(matrixEntry.value);
+          levelRate = matrixEntry.value;
+        } else {
+          // Fallback: package's own L1 rate
+          commissionAmount = (soldPackage as any).commissionRateType === 'flat'
+            ? Math.round((soldPackage as any).commissionRate || 0)
+            : Math.round(saleAmount * ((soldPackage as any).commissionRate || 0) / 100);
+          levelRate = (soldPackage as any).commissionRate || 0;
+        }
+      } else if (upline.level === 2) {
+        const val = (soldPackage as any).commissionLevel2 || 0;
+        commissionAmount = (soldPackage as any).commissionLevel2Type === 'flat'
+          ? Math.round(val)
+          : Math.round(saleAmount * val / 100);
+        levelRate = val;
+      } else {
+        const val = (soldPackage as any).commissionLevel3 || 0;
+        commissionAmount = (soldPackage as any).commissionLevel3Type === 'flat'
+          ? Math.round(val)
+          : Math.round(saleAmount * val / 100);
+        levelRate = val;
+      }
     } else {
-      levelRate = 2; // fixed
+      // Fallback to hardcoded rates if package not found
+      const fallbackRate = upline.level === 1 ? COMMISSION_RATES[earner.packageTier as PackageTier] : upline.level === 2 ? 5 : 2;
+      commissionAmount = Math.round(saleAmount * fallbackRate / 100);
+      levelRate = fallbackRate;
     }
 
-    const commissionAmount = Math.round((saleAmount * levelRate) / 100);
     if (commissionAmount <= 0) continue;
 
     // Create commission record
     await Commission.create({
       earner: earner._id,
       earnerTier: earner.packageTier,
-      earnerCommissionRate: earner.commissionRate,
+      earnerCommissionRate: levelRate,
       buyer: buyer._id,
       buyerPackageTier: purchase.packageTier,
       level: upline.level,
@@ -230,7 +267,7 @@ async function creditMLMCommissions(purchase: any, buyer: any) {
       type: 'credit',
       category: 'affiliate_commission',
       amount: commissionAmount,
-      description: `Level ${upline.level} commission — ${purchase.packageTier} package sale (${levelRate}%)`,
+      description: `Level ${upline.level} commission — ${purchase.packageTier} package sale`,
       referenceId: purchase._id.toString(),
       status: 'completed',
       balanceAfter: (earner.wallet || 0) + commissionAmount,

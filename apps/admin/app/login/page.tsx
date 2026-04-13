@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { adminAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, Zap, Lock, Mail } from 'lucide-react'
+import Image from 'next/image'
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -54,10 +55,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-violet-600 rounded-2xl mb-4">
-            <Zap className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-4">
+            <Image src="/logo.png" alt="TruLearnix" width={180} height={45} className="object-contain" priority />
           </div>
-          <h1 className="text-2xl font-bold text-white">TureLearnix Admin</h1>
           <p className="text-gray-400 mt-1 text-sm">Sign in to manage your platform</p>
         </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          TureLearnix Admin Panel &mdash; Authorized access only
+          TruLearnix Admin Panel &mdash; Authorized access only
         </p>
       </div>
     </div>

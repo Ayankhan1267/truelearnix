@@ -32,6 +32,11 @@ export interface ILead extends Document {
   tags: string[];
   city?: string;
   state?: string;
+  salesOrderId?: mongoose.Types.ObjectId;
+  tokenAmount?: number;
+  tokenCollected?: boolean;
+  isCompanyLead?: boolean;
+  salespersonCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +82,11 @@ const LeadSchema = new Schema<ILead>({
   tags: [String],
   city: String,
   state: String,
+  salesOrderId: { type: Schema.Types.ObjectId, ref: 'SalesOrder' },
+  tokenAmount: Number,
+  tokenCollected: { type: Boolean, default: false },
+  isCompanyLead: { type: Boolean, default: false },
+  salespersonCode: String,
 }, { timestamps: true });
 
 LeadSchema.index({ phone: 1 });

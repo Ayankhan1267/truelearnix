@@ -201,6 +201,15 @@ export const adminAPI = {
   // Partners
   partners: (params?: any) => api.get('/admin/partners', { params }),
   setPromoDiscount: (id: string, percent: number) => api.patch(`/admin/partners/${id}/promo-discount`, { promoDiscountPercent: percent }),
+  managers: () => api.get('/admin/managers'),
+  managerPerformance: (managerId: string) => api.get(`/admin/managers/${managerId}/performance`),
+  assignManager: (partnerId: string, managerId: string | null) => api.patch(`/admin/partners/${partnerId}/assign-manager`, { managerId }),
+  // Sales Team
+  salespersons: (params?: any) => api.get('/admin/salespersons', { params }),
+  salesOrders: (params?: any) => api.get('/admin/sales-orders', { params }),
+  salesStats: () => api.get('/admin/sales-stats'),
+  assignLeads: (leadIds: string[], salespersonId: string) => api.post('/admin/leads/assign', { leadIds, salespersonId }),
+  crmLeads: (params?: any) => api.get('/crm/leads', { params }),
   // NOVA AI Agent
   novaConfig: () => api.get('/nova/config'),
   updateNovaConfig: (data: any) => api.put('/nova/config', data),

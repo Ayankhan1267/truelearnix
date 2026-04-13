@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import {
   Edit2, X, Plus, Check, Package, DollarSign, Settings, BookOpen,
   ChevronDown, ChevronUp, Percent, Hash, Users, Shield, Zap, Star,
-  TrendingUp, IndianRupee, Info
+  TrendingUp, IndianRupee, Info, Video, Link, Calendar, Trash2
 } from 'lucide-react'
 
 const TIER_COLORS: Record<string, string> = {
@@ -40,6 +40,7 @@ const TABS = [
   { id: 'commissions', label: 'Commission Rules', icon: Percent },
   { id: 'tax', label: 'Tax Settings', icon: IndianRupee },
   { id: 'referral', label: 'Course Referral', icon: BookOpen },
+  { id: 'resources', label: 'Partner Resources', icon: Link },
 ]
 
 const EARNER_TIERS = ['starter', 'pro', 'elite', 'supreme'] as const
@@ -63,10 +64,11 @@ const DEFAULT_FORM = {
   name: '', price: 0, description: '', tier: '',
   displayOrder: 0, badge: '', badgeColor: '#6366f1',
   features: [] as string[],
-  emiAvailable: false, emiMonths: 3, emiMonthlyAmount: 0,
+  emiAvailable: false, emiDays: [] as number[], emiMonthlyAmount: 0,
   coursesAccess: 'limited', liveClassAccess: false, aiCoachAccess: false,
   jobEngineAccess: false, communityAccess: true, personalBrandAccess: false,
   mentorSupport: false, prioritySupport: false,
+  promoDiscountPercent: 0,
   commissionRate: 0, commissionRateType: 'percentage',
   commissionLevel2: 0, commissionLevel2Type: 'percentage',
   commissionLevel3: 0, commissionLevel3Type: 'percentage',
@@ -78,6 +80,81 @@ const DEFAULT_FORM = {
   isActive: true,
 }
 
+function MatrixEditor({ packages, onSave }: { packages: any[], onSave: (soldPkgId: string, earnings: any[]) => void }) {
+  const [editing, setEditing] = useState<{ soldPkgId: string, earnerPkgId: string } | null>(null)
+  const [editVal, setEditVal] = useState('')
+
+  const getValue = (soldPkg: any, earnerPkgId: string) => {
+    const row = (soldPkg.partnerEarnings || []).find((r: any) => r.earnerTier === earnerPkgId)
+    return row?.value || 0
+  }
+
+  const handleSave = (soldPkg: any, earnerPkg: any) => {
+    const newVal = Math.max(0, Number(editVal) || 0)
+    const existing = soldPkg.partnerEarnings || []
+    const updated = existing.find((r: any) => r.earnerTier === earnerPkg._id)
+      ? existing.map((r: any) => r.earnerTier === earnerPkg._id ? { ...r, value: newVal, type: 'flat' } : r)
+      : [...existing, { earnerTier: earnerPkg._id, earnerName: earnerPkg.name, value: newVal, type: 'flat' }]
+    onSave(soldPkg._id, updated)
+    setEditing(null)
+  }
+
+  return (
+    <table className="w-full text-sm min-w-max">
+      <thead>
+        <tr className="border-b border-white/10">
+          <th className="text-left pb-3 pr-6 text-gray-400 font-medium">Earner ↓ / Sells →</th>
+          {packages.map((pkg: any) => (
+            <th key={pkg._id} className={`text-center pb-3 px-3 font-bold ${TIER_ACCENT[pkg.tier] || 'text-gray-400'}`}>
+              {pkg.name}<br/><span className="text-gray-500 font-normal text-xs">₹{(pkg.price||0).toLocaleString()}</span>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-white/5">
+        {packages.map((earnerPkg: any) => (
+          <tr key={earnerPkg._id} className="hover:bg-white/[0.02]">
+            <td className="py-2 pr-6">
+              <span className={`font-bold text-sm ${TIER_ACCENT[earnerPkg.tier] || 'text-gray-300'}`}>{earnerPkg.name}</span>
+              <span className="text-gray-500 text-xs ml-1">partner</span>
+            </td>
+            {packages.map((soldPkg: any) => {
+              const isEditing = editing?.soldPkgId === soldPkg._id && editing?.earnerPkgId === earnerPkg._id
+              const val = getValue(soldPkg, earnerPkg._id)
+              return (
+                <td key={soldPkg._id} className="py-2 px-3 text-center">
+                  {isEditing ? (
+                    <div className="flex items-center gap-1 justify-center">
+                      <span className="text-gray-400 text-xs">₹</span>
+                      <input
+                        autoFocus
+                        type="number" min="0" step="1"
+                        value={editVal}
+                        onChange={e => setEditVal(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSave(soldPkg, earnerPkg); if (e.key === 'Escape') setEditing(null) }}
+                        className="w-20 bg-white/10 border border-indigo-500 rounded px-1 py-0.5 text-white text-xs text-center focus:outline-none"
+                      />
+                      <button onClick={() => handleSave(soldPkg, earnerPkg)} className="text-green-400 hover:text-green-300 text-xs font-bold">✓</button>
+                      <button onClick={() => setEditing(null)} className="text-gray-500 hover:text-gray-300 text-xs">✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditing({ soldPkgId: soldPkg._id, earnerPkgId: earnerPkg._id }); setEditVal(String(val)) }}
+                      className={`font-semibold text-sm px-2 py-0.5 rounded hover:bg-white/10 transition-colors ${val > 0 ? 'text-green-400' : 'text-gray-600 hover:text-gray-400'}`}
+                    >
+                      {val > 0 ? `₹${Math.round(val).toLocaleString()}` : '₹0'}
+                    </button>
+                  )}
+                </td>
+              )
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 export default function PackagesPage() {
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState('packages')
@@ -86,6 +163,9 @@ export default function PackagesPage() {
   const [form, setForm] = useState<any>(DEFAULT_FORM)
   const [featuresInput, setFeaturesInput] = useState('')
   const [taxForm, setTaxForm] = useState({ tdsRate: 2, gstRate: 18, minWithdrawalAmount: 500 })
+  const [resourceForm, setResourceForm] = useState({ webinarLink: '', webinarTitle: '', webinarDate: '', presentationVideoLink: '' })
+  const [myEarnings, setMyEarnings] = useState<any[]>([])
+  const [allPkgL2L3, setAllPkgL2L3] = useState<any[]>([])
 
   const { data: pkgData } = useQuery({
     queryKey: ['admin-packages'],
@@ -108,6 +188,12 @@ export default function PackagesPage() {
         tdsRate: taxData.settings.tdsRate ?? 2,
         gstRate: taxData.settings.gstRate ?? 18,
         minWithdrawalAmount: taxData.settings.minWithdrawalAmount ?? 500,
+      })
+      setResourceForm({
+        webinarLink: taxData.settings.webinarLink || '',
+        webinarTitle: taxData.settings.webinarTitle || '',
+        webinarDate: taxData.settings.webinarDate || '',
+        presentationVideoLink: taxData.settings.presentationVideoLink || '',
       })
     }
   }, [taxData])
@@ -135,6 +221,20 @@ export default function PackagesPage() {
     onError: () => toast.error('Failed to create package'),
   })
 
+  const deletePkgMutation = useMutation({
+    mutationFn: (id: string) => adminAPI.deletePackage(id),
+    onSuccess: () => {
+      toast.success('Package deleted')
+      qc.invalidateQueries({ queryKey: ['admin-packages'] })
+    },
+    onError: () => toast.error('Failed to delete package'),
+  })
+
+  const handleDelete = (pkg: any) => {
+    if (!confirm(`Delete "${pkg.name}"? This cannot be undone.`)) return
+    deletePkgMutation.mutate(pkg._id)
+  }
+
   const taxMutation = useMutation({
     mutationFn: (data: any) => adminAPI.updatePlatformSettings(data),
     onSuccess: () => {
@@ -142,6 +242,15 @@ export default function PackagesPage() {
       qc.invalidateQueries({ queryKey: ['platform-settings'] })
     },
     onError: () => toast.error('Failed to save tax settings'),
+  })
+
+  const resourceMutation = useMutation({
+    mutationFn: (data: any) => adminAPI.updatePlatformSettings(data),
+    onSuccess: () => {
+      toast.success('Partner resources saved')
+      qc.invalidateQueries({ queryKey: ['platform-settings'] })
+    },
+    onError: () => toast.error('Failed to save partner resources'),
   })
 
   const openEdit = (pkg: any) => {
@@ -157,7 +266,7 @@ export default function PackagesPage() {
       badgeColor: pkg.badgeColor || '#6366f1',
       features: pkg.features || [],
       emiAvailable: pkg.emiAvailable || false,
-      emiMonths: pkg.emiMonths || 3,
+      emiDays: Array.isArray(pkg.emiDays) ? pkg.emiDays : [],
       emiMonthlyAmount: pkg.emiMonthlyAmount || 0,
       coursesAccess: pkg.coursesAccess || 'limited',
       liveClassAccess: pkg.liveClassAccess || false,
@@ -167,6 +276,7 @@ export default function PackagesPage() {
       personalBrandAccess: pkg.personalBrandAccess || false,
       mentorSupport: pkg.mentorSupport || false,
       prioritySupport: pkg.prioritySupport || false,
+      promoDiscountPercent: pkg.promoDiscountPercent || 0,
       commissionRate: pkg.commissionRate || 0,
       commissionRateType: pkg.commissionRateType || 'percentage',
       commissionLevel2: pkg.commissionLevel2 || 0,
@@ -174,7 +284,6 @@ export default function PackagesPage() {
       commissionLevel3: pkg.commissionLevel3 || 0,
       commissionLevel3Type: pkg.commissionLevel3Type || 'percentage',
       partnerEarnings: packages
-        .filter((p: any) => p._id !== pkg._id)  // exclude self
         .map((p: any) => {
           const existing = (pkg.partnerEarnings || []).find((r: any) => r.earnerTier === p._id || r.earnerTier === p.name)
           return existing
@@ -188,6 +297,32 @@ export default function PackagesPage() {
       isActive: pkg.isActive !== false,
     })
     setFeaturesInput((pkg.features || []).join('\n'))
+    // Load "my earnings" — what this package's tier partner earns when selling each other package
+    const earnings = packages.map((soldPkg: any) => {
+      const entry = (soldPkg.partnerEarnings || []).find(
+        (r: any) => r.earnerTier?.toString() === pkg._id?.toString()
+      )
+      return {
+        soldPkgId: soldPkg._id,
+        soldPkgName: soldPkg.name,
+        soldPkgTier: (soldPkg.tier || '').toLowerCase(),
+        soldPkgPrice: soldPkg.price,
+        type: entry?.type || 'flat',
+        value: entry?.value || 0,
+      }
+    })
+    setMyEarnings(earnings)
+    const l2l3 = packages.map((soldPkg: any) => ({
+      pkgId: soldPkg._id,
+      pkgName: soldPkg.name,
+      pkgTier: (soldPkg.tier || '').toLowerCase(),
+      pkgPrice: soldPkg.price,
+      l2Type: soldPkg.commissionLevel2Type || 'flat',
+      l2Value: soldPkg.commissionLevel2 || 0,
+      l3Type: soldPkg.commissionLevel3Type || 'flat',
+      l3Value: soldPkg.commissionLevel3 || 0,
+    }))
+    setAllPkgL2L3(l2l3)
   }
 
   const openCreate = () => {
@@ -195,6 +330,34 @@ export default function PackagesPage() {
     setIsCreate(true)
     setForm({ ...DEFAULT_FORM, partnerEarnings: makePartnerEarnings(packages) })
     setFeaturesInput('')
+    setAllPkgL2L3(packages.map((pkg: any) => ({
+      pkgId: pkg._id, pkgName: pkg.name, pkgTier: (pkg.tier || '').toLowerCase(),
+      pkgPrice: pkg.price, l2Type: 'flat', l2Value: 0, l3Type: 'flat', l3Value: 0,
+    })))
+  }
+
+  const saveMyEarnings = async (pkg: any) => {
+    for (const entry of myEarnings) {
+      await adminAPI.updatePackageEarner(entry.soldPkgId, {
+        earnerTierId: pkg._id,
+        earnerTierName: pkg.name,
+        type: entry.type,
+        value: entry.value,
+      })
+    }
+    qc.invalidateQueries({ queryKey: ['admin-packages'] })
+  }
+
+  const saveAllL2L3 = async () => {
+    for (const entry of allPkgL2L3) {
+      await adminAPI.updatePackage(entry.pkgId, {
+        commissionLevel2: entry.l2Value,
+        commissionLevel2Type: entry.l2Type,
+        commissionLevel3: entry.l3Value,
+        commissionLevel3Type: entry.l3Type,
+      })
+    }
+    qc.invalidateQueries({ queryKey: ['admin-packages'] })
   }
 
   const savePackage = () => {
@@ -203,7 +366,12 @@ export default function PackagesPage() {
     if (isCreate) {
       createPkgMutation.mutate(payload)
     } else if (editPkg) {
-      updatePkgMutation.mutate({ id: editPkg._id, data: payload })
+      updatePkgMutation.mutate({ id: editPkg._id, data: payload }, {
+        onSuccess: () => {
+          saveMyEarnings(editPkg)
+          saveAllL2L3()
+        },
+      })
     }
   }
 
@@ -267,7 +435,12 @@ export default function PackagesPage() {
             {packages.map((pkg: any) => {
               const tier = (pkg.tier || '').toLowerCase()
               const TierIcon = TIER_ICON[tier] || Package
-              const l1Earn = Math.round((pkg.price || 0) * (pkg.commissionRate || 0) / 100)
+              const l2Label = pkg.commissionLevel2Type === 'flat'
+                ? `₹${(pkg.commissionLevel2 || 0).toLocaleString()}`
+                : `${pkg.commissionLevel2 || 0}%`
+              const l3Label = pkg.commissionLevel3Type === 'flat'
+                ? `₹${(pkg.commissionLevel3 || 0).toLocaleString()}`
+                : `${pkg.commissionLevel3 || 0}%`
               return (
                 <div key={pkg._id} className={`card bg-gradient-to-br ${TIER_COLORS[tier] || 'from-gray-500/20 to-gray-600/10 border-gray-500/30'} border relative group`}>
                   {pkg.badge && (
@@ -288,10 +461,16 @@ export default function PackagesPage() {
                         <p className="text-base font-black text-white leading-tight">{pkg.name}</p>
                       </div>
                     </div>
-                    <button onClick={() => openEdit(pkg)}
-                      className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white opacity-0 group-hover:opacity-100">
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                      <button onClick={() => openEdit(pkg)}
+                        className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(pkg)}
+                        className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-red-400">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <p className={`text-2xl font-black ${TIER_ACCENT[tier] || 'text-gray-400'} mb-3`}>
@@ -300,16 +479,22 @@ export default function PackagesPage() {
 
                   <div className="space-y-1.5 mb-3 p-2 bg-black/20 rounded-lg">
                     <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Promo Discount</span>
+                      <span className={`font-semibold ${(pkg.promoDiscountPercent || 0) > 0 ? 'text-emerald-400' : 'text-gray-600'}`}>
+                        {pkg.promoDiscountPercent || 0}% off
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
                       <span className="text-gray-400">Partner L1</span>
-                      <span className="text-green-400 font-semibold">{pkg.commissionRate || 0}% (₹{l1Earn})</span>
+                      <span className="text-green-400 font-semibold">Per tier →</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-gray-400">Partner L2</span>
-                      <span className="text-blue-400 font-semibold">{pkg.commissionLevel2 || 0}%</span>
+                      <span className="text-blue-400 font-semibold">{l2Label}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-gray-400">Partner L3</span>
-                      <span className="text-violet-400 font-semibold">{pkg.commissionLevel3 || 0}%</span>
+                      <span className="text-violet-400 font-semibold">{l3Label}</span>
                     </div>
                     {pkg.salesTeamCommission?.value > 0 && (
                       <div className="flex justify-between text-xs">
@@ -357,91 +542,53 @@ export default function PackagesPage() {
         {activeTab === 'commissions' && (
           <div className="space-y-6">
 
-            {/* Partner Earnings Matrix */}
+            {/* Partner Earnings Matrix — inline editable */}
             <div className="card overflow-x-auto">
               <h2 className="text-base font-bold text-white mb-1">Partner Earnings Matrix</h2>
-              <p className="text-gray-400 text-sm mb-4">
-                Kisi bhi tier ka partner koi bhi package sell kare — usse kitna milega (L1 direct)
+              <p className="text-gray-400 text-sm mb-1">
+                How much a partner earns (flat ₹) when they sell any package, based on their own package tier.
+              </p>
+              <p className="text-xs text-blue-300 mb-4 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                <strong>Edit directly:</strong> Click any cell, type the flat ₹ amount, press Enter or click Save. Each cell = what that earner tier gets when they help sell that column's package.
               </p>
               {packages.length > 0 && (
-                <table className="w-full text-sm min-w-max">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left pb-3 pr-6 text-gray-400 font-medium">Earner's Tier ↓ / Sells →</th>
-                      {packages.map((pkg: any) => (
-                        <th key={pkg._id} className={`text-center pb-3 px-4 font-bold ${TIER_ACCENT[pkg.tier] || 'text-gray-400'}`}>
-                          {pkg.name}<br/><span className="text-gray-500 font-normal text-xs">₹{(pkg.price||0).toLocaleString()}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {packages.map((earnerPkg: any) => (
-                      <tr key={earnerPkg._id} className="hover:bg-white/[0.02]">
-                        <td className="py-3 pr-6">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-indigo-400" />
-                            <span className="font-bold text-white text-sm">{earnerPkg.name}</span>
-                            <span className="text-gray-500 text-xs">package wala</span>
-                          </div>
-                        </td>
-                        {packages.map((soldPkg: any) => {
-                          if (soldPkg._id === earnerPkg._id) return (
-                            <td key={soldPkg._id} className="py-3 px-4 text-center text-gray-700 text-xs">—</td>
-                          )
-                          const row = (soldPkg.partnerEarnings || []).find(
-                            (r: any) => r.earnerTier === earnerPkg._id || r.earnerName === earnerPkg.name
-                          )
-                          if (!row || !row.value) return (
-                            <td key={soldPkg._id} className="py-3 px-4 text-center text-gray-600 text-xs">₹0</td>
-                          )
-                          const earn = row.type === 'flat' ? row.value : Math.round((soldPkg.price||0) * row.value / 100)
-                          const l2Earn = row.l2Type === 'flat' ? row.l2Value : Math.round((soldPkg.price||0) * (row.l2Value||0) / 100)
-                          return (
-                            <td key={soldPkg._id} className="py-3 px-4 text-center">
-                              <div className="font-bold text-sm text-green-400">₹{earn.toLocaleString()}</div>
-                              {l2Earn > 0 && <div className="text-xs text-blue-400/70">+₹{l2Earn} L2</div>}
-                              <div className="text-gray-600 text-xs">{row.type === 'flat' ? `₹${row.value} flat` : `${row.value}%`}</div>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <MatrixEditor packages={packages} onSave={(soldPkgId, updatedEarnings) => {
+                  updatePkgMutation.mutate({ id: soldPkgId, data: { partnerEarnings: updatedEarnings } })
+                }} />
               )}
               {packages.length === 0 && <p className="text-gray-500 text-sm">No packages configured yet</p>}
             </div>
 
             <div className="card overflow-x-auto">
-              <h2 className="text-base font-bold text-white mb-1">Commission Breakdown Per Package</h2>
-              <p className="text-gray-400 text-sm mb-4">Per-package commission rules for partners, sales team, and student managers</p>
-              <table className="w-full text-sm min-w-[900px]">
+              <h2 className="text-base font-bold text-white mb-1">Sales Team & Manager Commission Per Package</h2>
+              <p className="text-gray-400 text-sm mb-4">Set L1 partner commissions in the matrix above. Configure Sales Team and Manager commissions here.</p>
+              <table className="w-full text-sm min-w-[600px]">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left pb-3 pr-4 text-gray-400 font-medium w-40">Package</th>
                     <th className="text-left pb-3 px-3 text-gray-400 font-medium">Price</th>
-                    <th className="text-left pb-3 px-3 text-green-400 font-medium">Partner L1%</th>
-                    <th className="text-left pb-3 px-3 text-blue-400 font-medium">Partner L2%</th>
-                    <th className="text-left pb-3 px-3 text-violet-400 font-medium">Partner L3%</th>
                     <th className="text-left pb-3 px-3 text-amber-400 font-medium">Sales Team</th>
                     <th className="text-left pb-3 px-3 text-pink-400 font-medium">Mgr Commission</th>
-                    <th className="text-left pb-3 px-3 text-gray-400 font-medium">Max L1 Earn</th>
+                    <th className="text-left pb-3 px-3 text-blue-400 font-medium">L2</th>
+                    <th className="text-left pb-3 px-3 text-violet-400 font-medium">L3</th>
                     <th className="pb-3 px-3 text-gray-400 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {packages.map((pkg: any) => {
                     const tier = (pkg.tier || '').toLowerCase()
-                    const maxEarn = pkg.commissionRateType === 'flat'
-                      ? (pkg.commissionRate || 0)
-                      : Math.round((pkg.price || 0) * (pkg.commissionRate || 0) / 100)
                     const salesVal = pkg.salesTeamCommission?.type === 'flat'
                       ? `₹${pkg.salesTeamCommission?.value || 0}`
                       : `${pkg.salesTeamCommission?.value || 0}%`
                     const mgrVal = pkg.managerCommission?.type === 'flat'
                       ? `₹${pkg.managerCommission?.value || 0}`
                       : `${pkg.managerCommission?.value || 0}%`
+                    const l2Val = pkg.commissionLevel2Type === 'flat'
+                      ? `₹${pkg.commissionLevel2 || 0}`
+                      : `${pkg.commissionLevel2 || 0}%`
+                    const l3Val = pkg.commissionLevel3Type === 'flat'
+                      ? `₹${pkg.commissionLevel3 || 0}`
+                      : `${pkg.commissionLevel3 || 0}%`
                     return (
                       <tr key={pkg._id} className="hover:bg-white/[0.02]">
                         <td className="py-3 pr-4">
@@ -451,18 +598,10 @@ export default function PackagesPage() {
                           </div>
                         </td>
                         <td className="py-3 px-3 text-white font-medium">₹{(pkg.price || 0).toLocaleString()}</td>
-                        <td className="py-3 px-3 text-green-400 font-semibold">
-                          {pkg.commissionRateType === 'flat' ? `₹${pkg.commissionRate || 0}` : `${pkg.commissionRate || 0}%`}
-                        </td>
-                        <td className="py-3 px-3 text-blue-400 font-semibold">
-                          {pkg.commissionLevel2Type === 'flat' ? `₹${pkg.commissionLevel2 || 0}` : `${pkg.commissionLevel2 || 0}%`}
-                        </td>
-                        <td className="py-3 px-3 text-violet-400 font-semibold">
-                          {pkg.commissionLevel3Type === 'flat' ? `₹${pkg.commissionLevel3 || 0}` : `${pkg.commissionLevel3 || 0}%`}
-                        </td>
                         <td className="py-3 px-3 text-amber-400 font-semibold">{salesVal}</td>
                         <td className="py-3 px-3 text-pink-400 font-semibold">{mgrVal}</td>
-                        <td className="py-3 px-3 text-white font-semibold">₹{maxEarn.toLocaleString()}</td>
+                        <td className="py-3 px-3 text-blue-400 font-semibold">{l2Val}</td>
+                        <td className="py-3 px-3 text-violet-400 font-semibold">{l3Val}</td>
                         <td className="py-3 px-3">
                           <button onClick={() => openEdit(pkg)}
                             className="text-xs px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors">
@@ -482,8 +621,6 @@ export default function PackagesPage() {
                 const tier = (pkg.tier || '').toLowerCase()
                 const price = pkg.price || 0
                 const l1 = pkg.commissionRateType === 'flat' ? (pkg.commissionRate || 0) : Math.round(price * (pkg.commissionRate || 0) / 100)
-                const l2 = pkg.commissionLevel2Type === 'flat' ? (pkg.commissionLevel2 || 0) : Math.round(price * (pkg.commissionLevel2 || 0) / 100)
-                const l3 = pkg.commissionLevel3Type === 'flat' ? (pkg.commissionLevel3 || 0) : Math.round(price * (pkg.commissionLevel3 || 0) / 100)
                 const salesEarn = pkg.salesTeamCommission?.type === 'flat'
                   ? pkg.salesTeamCommission?.value || 0
                   : Math.round(price * (pkg.salesTeamCommission?.value || 0) / 100)
@@ -494,9 +631,7 @@ export default function PackagesPage() {
                       <h3 className="font-bold text-white text-sm">Earning Example — {pkg.name} (₹{price.toLocaleString()})</h3>
                     </div>
                     <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between"><span className="text-gray-400">Partner L1 earns</span><span className="text-green-400 font-semibold">₹{l1.toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-400">Partner L2 earns</span><span className="text-blue-400 font-semibold">₹{l2.toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-400">Partner L3 earns</span><span className="text-violet-400 font-semibold">₹{l3.toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">Partner earns</span><span className="text-green-400 font-semibold">₹{l1.toLocaleString()}</span></div>
                       <div className="flex justify-between border-t border-white/10 pt-1.5"><span className="text-gray-400">Sales Team earns</span><span className="text-amber-400 font-semibold">₹{salesEarn.toLocaleString()}</span></div>
                     </div>
                   </div>
@@ -690,6 +825,121 @@ export default function PackagesPage() {
             </div>
           </div>
         )}
+
+        {/* ── PARTNER RESOURCES TAB ── */}
+        {activeTab === 'resources' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Webinar Settings */}
+            <div className="card space-y-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-5 h-5 text-violet-400" />
+                <h2 className="text-base font-bold text-white">Upcoming Webinar</h2>
+              </div>
+              <p className="text-xs text-gray-400 -mt-3">This webinar info is shown to all partners on their Link Generator page.</p>
+
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Webinar Title</label>
+                <input
+                  type="text"
+                  value={resourceForm.webinarTitle}
+                  onChange={e => setResourceForm({ ...resourceForm, webinarTitle: e.target.value })}
+                  className="input"
+                  placeholder="e.g. Digital Marketing Masterclass"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Webinar Date</label>
+                <input
+                  type="text"
+                  value={resourceForm.webinarDate}
+                  onChange={e => setResourceForm({ ...resourceForm, webinarDate: e.target.value })}
+                  className="input"
+                  placeholder="e.g. 15 April 2026, 7:00 PM IST"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Webinar Join Link</label>
+                <input
+                  type="url"
+                  value={resourceForm.webinarLink}
+                  onChange={e => setResourceForm({ ...resourceForm, webinarLink: e.target.value })}
+                  className="input"
+                  placeholder="https://zoom.us/j/..."
+                />
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <label className="block text-xs text-gray-400 mb-1.5">Presentation / Sales Video Link</label>
+                <input
+                  type="url"
+                  value={resourceForm.presentationVideoLink}
+                  onChange={e => setResourceForm({ ...resourceForm, presentationVideoLink: e.target.value })}
+                  className="input"
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+                <p className="text-xs text-gray-500 mt-1">Partners can share this video with prospects. Leave blank to hide.</p>
+              </div>
+
+              <button
+                onClick={() => resourceMutation.mutate(resourceForm)}
+                disabled={resourceMutation.isPending}
+                className="btn-primary w-full disabled:opacity-50"
+              >
+                {resourceMutation.isPending ? 'Saving...' : 'Save Partner Resources'}
+              </button>
+            </div>
+
+            {/* Preview */}
+            <div className="space-y-4">
+              <div className="card bg-gradient-to-br from-violet-500/10 to-purple-600/10 border border-violet-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Video className="w-4 h-4 text-violet-400" />
+                  <h3 className="font-bold text-white text-sm">Preview — What Partners See</h3>
+                </div>
+                {resourceForm.webinarTitle || resourceForm.webinarLink ? (
+                  <div className="space-y-2 text-sm">
+                    <p className="text-white font-medium">{resourceForm.webinarTitle || 'Untitled Webinar'}</p>
+                    {resourceForm.webinarDate && <p className="text-violet-300 text-xs">{resourceForm.webinarDate}</p>}
+                    {resourceForm.webinarLink && (
+                      <a href={resourceForm.webinarLink} target="_blank" rel="noreferrer"
+                        className="inline-block text-xs text-violet-400 underline break-all">
+                        {resourceForm.webinarLink}
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-xs">Fill in the webinar details on the left to preview.</p>
+                )}
+              </div>
+
+              {resourceForm.presentationVideoLink && (
+                <div className="card bg-gradient-to-br from-blue-500/10 to-cyan-600/10 border border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Video className="w-4 h-4 text-blue-400" />
+                    <h3 className="font-bold text-white text-sm">Presentation Video</h3>
+                  </div>
+                  <a href={resourceForm.presentationVideoLink} target="_blank" rel="noreferrer"
+                    className="text-xs text-blue-400 underline break-all">
+                    {resourceForm.presentationVideoLink}
+                  </a>
+                </div>
+              )}
+
+              <div className="card bg-slate-800/50 border border-white/5">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-gray-400 space-y-1">
+                    <p>Partners see this webinar info on their <span className="text-white">Link Generator</span> page.</p>
+                    <p>They can share the webinar link and presentation video with their audience.</p>
+                    <p>Leave fields blank to hide them from partners.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── EDIT / CREATE MODAL ── */}
@@ -719,6 +969,25 @@ export default function PackagesPage() {
                     <input type="number" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} className="input" />
                   </div>
                 </div>
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <label className="label text-emerald-300">Promo Code Discount % <span className="text-gray-500 font-normal text-xs">(applied when a partner's promo code is used)</span></label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number" min={0} max={100}
+                      value={form.promoDiscountPercent}
+                      onChange={e => setForm({ ...form, promoDiscountPercent: Number(e.target.value) })}
+                      className="input w-28"
+                      placeholder="0"
+                    />
+                    <span className="text-emerald-400 font-bold">%</span>
+                    {form.promoDiscountPercent > 0 && form.price > 0 && (
+                      <span className="text-sm text-gray-400">
+                        = ₹{Math.round(form.price * form.promoDiscountPercent / 100)} off on ₹{form.price.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1.5">0% = no discount, partner earns commission only. 10% = buyer gets 10% off when a promo code is applied.</p>
+                </div>
                 <div>
                   <label className="label">Description</label>
                   <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="input resize-none" placeholder="Short description of the package" />
@@ -728,7 +997,7 @@ export default function PackagesPage() {
                     <label className="label">Tier / Level <span className="text-gray-500 font-normal">(optional)</span></label>
                     <input value={form.tier} onChange={e => setForm({ ...form, tier: e.target.value })}
                       className="input" placeholder="e.g. starter, pro, gold, diamond..." />
-                    <p className="text-xs text-gray-600 mt-1">Commission styling ke liye use hota hai</p>
+                    <p className="text-xs text-gray-600 mt-1">Used for commission styling and tier identification</p>
                   </div>
                   <div>
                     <label className="label">Display Order</label>
@@ -773,20 +1042,53 @@ export default function PackagesPage() {
               </Section>
 
               {/* EMI Settings */}
-              <Section title="EMI Settings" icon={DollarSign}>
+              <Section title="EMI / Installments" icon={DollarSign}>
                 <div className="flex items-center gap-3 mb-3">
                   <Toggle checked={form.emiAvailable} onChange={v => setForm({ ...form, emiAvailable: v })} />
-                  <span className="text-sm text-gray-300">Enable EMI for this package</span>
+                  <span className="text-sm text-gray-300">Enable installment payments for this package</span>
                 </div>
                 {form.emiAvailable && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="label">EMI Months</label>
-                      <input type="number" value={form.emiMonths} onChange={e => setForm({ ...form, emiMonths: Number(e.target.value) })} className="input" />
+                      <label className="label">Installment Schedule (Days from Purchase)</label>
+                      <p className="text-xs text-gray-500 mb-2">Add day offsets for each installment. e.g. 0 = today, 15 = after 15 days</p>
+                      {/* Live preview */}
+                      {(form.emiDays as number[]).length > 0 && (
+                        <div className="grid gap-1.5 mb-3" style={{ gridTemplateColumns: `repeat(${Math.min((form.emiDays as number[]).length, 4)}, 1fr)` }}>
+                          {(form.emiDays as number[]).map((d, i) => (
+                            <div key={i} className="rounded-lg bg-violet-500/10 border border-violet-500/20 p-2 text-center text-xs">
+                              <p className="text-violet-300 font-bold">Inst. {i + 1}</p>
+                              <p className="text-gray-400 mt-0.5">{d === 0 ? 'Today' : `+${d} Days`}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {(form.emiDays as number[]).map((d, i) => (
+                          <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-sm font-semibold">
+                            {d === 0 ? 'Day 0 (Today)' : `Day ${d}`}
+                            <button type="button" onClick={() => setForm({ ...form, emiDays: (form.emiDays as number[]).filter((_, idx) => idx !== i) })} className="text-violet-400 hover:text-red-400">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                        {(form.emiDays as number[]).length === 0 && (
+                          <span className="text-xs text-gray-500 italic">No installments configured</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {[0, 7, 15, 30, 45, 60, 90].filter(d => !(form.emiDays as number[]).includes(d)).map(d => (
+                          <button key={d} type="button"
+                            onClick={() => setForm({ ...form, emiDays: [...(form.emiDays as number[]), d].sort((a, b) => a - b) })}
+                            className="px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 text-xs hover:border-violet-500/50 hover:text-violet-300 transition-all">
+                            +Day {d}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div>
-                      <label className="label">Monthly Amount (₹)</label>
-                      <input type="number" value={form.emiMonthlyAmount} onChange={e => setForm({ ...form, emiMonthlyAmount: Number(e.target.value) })} className="input" />
+                      <label className="label">Display Amount per Installment (₹)</label>
+                      <input type="number" value={form.emiMonthlyAmount} onChange={e => setForm({ ...form, emiMonthlyAmount: Number(e.target.value) })} className="input" placeholder="e.g. 2500" />
                     </div>
                   </div>
                 )}
@@ -821,81 +1123,131 @@ export default function PackagesPage() {
                 </div>
               </Section>
 
-              {/* Partner Commission Matrix */}
-              <Section title="Partner Commission Matrix" icon={Percent}>
-                <p className="text-xs text-gray-400 mb-4">
-                  Jis partner ne jo package khareeda hai, agar vo IS package ko sell kare to usse kitna milega
-                </p>
-                {(!form.partnerEarnings || form.partnerEarnings.length === 0) && (
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
-                    Pehle kuch aur packages bana lo — phir yahan unke hisaab se commission set karo.
+              {/* Partner Commission — L1 per tier + L2/L3 */}
+              <Section title="Partner Commission" icon={Percent}>
+
+                {/* L1 — my earnings per sold package */}
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-green-400 uppercase tracking-wider">L1 — Direct Referrer</span>
                   </div>
-                )}
-                <div className="space-y-3">
-                  {(form.partnerEarnings || []).map((row: any, idx: number) => {
-                    const displayName = row.earnerName || row.earnerTier
-                    const tierColor = TIER_ACCENT[(row.earnerTier || '').toLowerCase()] || 'text-indigo-400'
-                    const updateRow = (patch: any) => {
-                      const updated = [...form.partnerEarnings]
-                      updated[idx] = { ...updated[idx], ...patch }
-                      setForm({ ...form, partnerEarnings: updated })
-                    }
-                    const l1Earn = row.type === 'flat' ? row.value : Math.round((form.price || 0) * row.value / 100)
-                    const l2Earn = row.l2Type === 'flat' ? row.l2Value : Math.round((form.price || 0) * (row.l2Value || 0) / 100)
-                    const l3Earn = row.l3Type === 'flat' ? row.l3Value : Math.round((form.price || 0) * (row.l3Value || 0) / 100)
-                    return (
-                      <div key={row.earnerTier} className="border border-white/10 rounded-xl p-4">
-                        {/* Row header */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-indigo-400" />
-                            <span className="text-sm font-bold text-white">{displayName}</span>
-                            <span className="text-gray-500 text-xs">package wala partner sell kare →</span>
-                          </div>
-                          {form.price > 0 && (
-                            <div className="flex items-center gap-3 text-xs">
-                              <span className="text-green-400">L1: ₹{l1Earn}</span>
-                              <span className="text-blue-400">L2: ₹{l2Earn}</span>
-                              <span className="text-violet-400">L3: ₹{l3Earn}</span>
-                            </div>
-                          )}
-                        </div>
-                        {/* L1 / L2 / L3 inputs */}
-                        <div className="grid grid-cols-3 gap-3">
-                          {[
-                            { label: 'L1 (Direct)', typeKey: 'type', valKey: 'value', color: 'text-green-400' },
-                            { label: 'L2 Commission', typeKey: 'l2Type', valKey: 'l2Value', color: 'text-blue-400' },
-                            { label: 'L3 Commission', typeKey: 'l3Type', valKey: 'l3Value', color: 'text-violet-400' },
-                          ].map(({ label, typeKey, valKey, color }) => (
-                            <div key={typeKey} className="space-y-1.5">
-                              <label className={`text-xs font-semibold ${color}`}>{label}</label>
-                              <select
-                                value={row[typeKey]}
-                                onChange={e => updateRow({ [typeKey]: e.target.value })}
-                                className="input text-xs py-1.5"
-                              >
-                                <option value="percentage">% Percent</option>
-                                <option value="flat">₹ Fixed</option>
-                              </select>
-                              <input
-                                type="number" min="0" step="0.1"
-                                value={row[valKey]}
-                                onChange={e => updateRow({ [valKey]: Number(e.target.value) })}
-                                className="input text-xs py-1.5"
-                                placeholder={row[typeKey] === 'flat' ? '₹ amount' : '% value'}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <p className="text-xs text-blue-300">
-                    <strong>Example:</strong> Agar Pro tier partner ne Starter ko refer kiya aur us ke referral se kisi ne Elite package buy kiya,
-                    to Pro row ke L1 value milegi. L2 unhe milegi jinka referral Pro ne kiya tha.
+                  <p className="text-xs text-gray-500 mb-3">
+                    How much does a <strong className="text-white">{editPkg?.name || 'this tier'}</strong> partner earn when they sell each package?
                   </p>
+                  {myEarnings.length === 0 ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+                      Create packages first — tiers will appear here.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {myEarnings.map((row: any, idx: number) => {
+                        const accentColor = TIER_ACCENT[row.soldPkgTier] || 'text-indigo-400'
+                        const earn = row.type === 'percentage'
+                          ? Math.round((row.soldPkgPrice || 0) * (row.value || 0) / 100)
+                          : (row.value || 0)
+                        const updateRow = (patch: any) => {
+                          const updated = [...myEarnings]
+                          updated[idx] = { ...updated[idx], ...patch }
+                          setMyEarnings(updated)
+                        }
+                        return (
+                          <div key={row.soldPkgId} className="grid grid-cols-3 gap-3 items-center border border-white/10 rounded-xl p-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full bg-current ${accentColor}`} />
+                                <span className={`text-sm font-bold ${accentColor}`}>{row.soldPkgName}</span>
+                              </div>
+                              <span className="text-xs text-gray-500 ml-4">₹{(row.soldPkgPrice || 0).toLocaleString()}</span>
+                            </div>
+                            <select
+                              value={row.type || 'flat'}
+                              onChange={e => updateRow({ type: e.target.value })}
+                              className="input text-xs py-1.5"
+                            >
+                              <option value="percentage">% Percentage</option>
+                              <option value="flat">₹ Flat</option>
+                            </select>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number" min="0" step={row.type === 'percentage' ? '0.1' : '1'}
+                                value={row.value || 0}
+                                onChange={e => updateRow({ value: Number(e.target.value) })}
+                                className="input text-xs py-1.5"
+                              />
+                              {(row.value || 0) > 0 && (
+                                <span className="text-green-400 text-xs font-semibold whitespace-nowrap">= ₹{earn.toLocaleString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* L2 & L3 — per sold package grid */}
+                <div className="border-t border-white/10 pt-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">L2 & L3 — Per Sold Package</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">When each package is sold, how much does L2 (sponsor of referrer) and L3 (sponsor of L2) earn?</p>
+                  {allPkgL2L3.length === 0 ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
+                      Save packages first — tiers will appear here.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allPkgL2L3.map((row: any, idx: number) => {
+                        const accentColor = TIER_ACCENT[row.pkgTier] || 'text-gray-400'
+                        const l2Earn = row.l2Type === 'flat' ? (row.l2Value || 0) : Math.round((row.pkgPrice || 0) * (row.l2Value || 0) / 100)
+                        const l3Earn = row.l3Type === 'flat' ? (row.l3Value || 0) : Math.round((row.pkgPrice || 0) * (row.l3Value || 0) / 100)
+                        const updateRow = (patch: any) => {
+                          const updated = [...allPkgL2L3]
+                          updated[idx] = { ...updated[idx], ...patch }
+                          setAllPkgL2L3(updated)
+                        }
+                        return (
+                          <div key={row.pkgId} className="border border-white/10 rounded-xl p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full bg-current ${accentColor}`} />
+                              <span className={`text-sm font-bold ${accentColor}`}>{row.pkgName}</span>
+                              <span className="text-xs text-gray-500">₹{(row.pkgPrice || 0).toLocaleString()}</span>
+                            </div>
+                            {/* L2 */}
+                            <div className="grid grid-cols-3 gap-2 items-center">
+                              <span className="text-xs text-blue-400 font-medium">L2</span>
+                              <select value={row.l2Type} onChange={e => updateRow({ l2Type: e.target.value })} className="input text-xs py-1.5">
+                                <option value="percentage">% Percentage</option>
+                                <option value="flat">₹ Flat</option>
+                              </select>
+                              <div className="flex items-center gap-2">
+                                <input type="number" min="0" step={row.l2Type === 'percentage' ? '0.1' : '1'}
+                                  value={row.l2Value || 0}
+                                  onChange={e => updateRow({ l2Value: Number(e.target.value) })}
+                                  className="input text-xs py-1.5" />
+                                {(row.l2Value || 0) > 0 && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">= ₹{l2Earn.toLocaleString()}</span>}
+                              </div>
+                            </div>
+                            {/* L3 */}
+                            <div className="grid grid-cols-3 gap-2 items-center">
+                              <span className="text-xs text-violet-400 font-medium">L3</span>
+                              <select value={row.l3Type} onChange={e => updateRow({ l3Type: e.target.value })} className="input text-xs py-1.5">
+                                <option value="percentage">% Percentage</option>
+                                <option value="flat">₹ Flat</option>
+                              </select>
+                              <div className="flex items-center gap-2">
+                                <input type="number" min="0" step={row.l3Type === 'percentage' ? '0.1' : '1'}
+                                  value={row.l3Value || 0}
+                                  onChange={e => updateRow({ l3Value: Number(e.target.value) })}
+                                  className="input text-xs py-1.5" />
+                                {(row.l3Value || 0) > 0 && <span className="text-violet-400 text-xs font-semibold whitespace-nowrap">= ₹{l3Earn.toLocaleString()}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               </Section>
 

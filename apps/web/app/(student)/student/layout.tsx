@@ -18,7 +18,6 @@ function PaywallScreen() {
   return (
     <div className="flex-1 flex items-center justify-center min-h-screen p-6">
       <div className="max-w-md w-full text-center space-y-6">
-        {/* Icon */}
         <div className="relative inline-block">
           <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary-600/20 to-purple-600/20 border border-primary-500/30 flex items-center justify-center mx-auto">
             <Lock className="w-10 h-10 text-primary-400" />
@@ -27,16 +26,12 @@ function PaywallScreen() {
             <Star className="w-4 h-4 text-white fill-white" />
           </div>
         </div>
-
-        {/* Text */}
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-white">Unlock Full Access</h1>
           <p className="text-gray-400 leading-relaxed">
             This section is available to enrolled learners only. Purchase a package to unlock your dashboard, courses, live classes, and everything else.
           </p>
         </div>
-
-        {/* Benefits */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left space-y-3">
           {[
             'Full dashboard & personalised learning path',
@@ -50,8 +45,6 @@ function PaywallScreen() {
             </div>
           ))}
         </div>
-
-        {/* CTA */}
         <div className="flex flex-col gap-3">
           <Link href="/packages"
             className="flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold text-sm hover:from-primary-500 hover:to-purple-500 transition-all shadow-lg shadow-primary-500/25">
@@ -59,8 +52,7 @@ function PaywallScreen() {
             View Packages & Enroll
             <ArrowRight className="w-4 h-4" />
           </Link>
-          <Link href="/student/profile"
-            className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
+          <Link href="/student/profile" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
             Go to my profile →
           </Link>
         </div>
@@ -80,15 +72,18 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!mounted) return
     if (!isAuthenticated()) { router.push('/login'); return }
-    if (user?.role !== 'student') { router.push(`/${user?.role}`); return }
+    if (user?.role && user.role !== 'student') { router.push(`/${user.role}`); return }
   }, [mounted, user])
 
   if (!mounted || !user || user.role !== 'student') return null
 
+  // Live class room — full screen, no sidebar/padding
+  const isLiveRoom = /^\/student\/classes\/[^/]+$/.test(pathname)
+  if (isLiveRoom) return <>{children}</>
+
   const hasPurchased = PAID_TIERS.includes(user.packageTier || '')
   const isAllowed = FREE_ALLOWED_PREFIXES.some(p => pathname.startsWith(p))
 
-  // Free user hitting a locked page → show paywall inside the layout (sidebar still visible)
   if (!hasPurchased && !isAllowed) {
     return (
       <div className="flex min-h-screen bg-dark-900">

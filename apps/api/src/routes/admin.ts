@@ -46,6 +46,121 @@ router.patch('/users/:id/package', async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// Partners — list all partners & manage promo discount
+router.get('/partners', async (req, res) => {
+  try {
+    const { search, page = 1, limit = 30, managerId } = req.query;
+    const filter: any = {
+      affiliateCode: { $exists: true, $nin: [null, ''] },
+      role: { $nin: ['admin', 'superadmin', 'manager', 'mentor'] },
+    };
+    if (search) filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+      { affiliateCode: { $regex: search, $options: 'i' } },
+    ];
+    if (managerId === 'unassigned') filter.managerId = { $in: [null, undefined] };
+    else if (managerId) filter.managerId = managerId;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [partners, total] = await Promise.all([
+      User.find(filter)
+        .select('name email phone affiliateCode packageTier commissionRate promoDiscountPercent wallet totalEarnings isActive createdAt managerId')
+        .populate('managerId', 'name email phone')
+        .sort('-createdAt').skip(skip).limit(Number(limit)),
+      User.countDocuments(filter),
+    ]);
+    res.json({ success: true, partners, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// List all managers (for assignment dropdown)
+router.get('/managers', async (req, res) => {
+  try {
+    const managers = await User.find({ role: 'manager', isActive: true })
+      .select('name email phone avatar')
+      .sort('name');
+    // Enrich with assigned partner count
+    const enriched = await Promise.all(managers.map(async m => {
+      const assignedCount = await User.countDocuments({ managerId: m._id });
+      return { ...m.toObject(), assignedCount };
+    }));
+    res.json({ success: true, managers: enriched });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// Manager performance stats
+router.get('/managers/:id/performance', async (req, res) => {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+    const mongoose = await import('mongoose');
+    const managerId = req.params.id;
+    const [assignedPartners, partnerDocs] = await Promise.all([
+      User.countDocuments({ managerId }),
+      User.find({ managerId }, '_id'),
+    ]);
+    const pIds = partnerDocs.map((p: any) => p._id);
+
+    const [purchases, earnedComm, pendingComm, activePartners] = await Promise.all([
+      PackagePurchase.find({ partnerUser: { $in: pIds } })
+        .select('totalAmount paidAmount purchaseType partnerUser createdAt')
+        .populate('partnerUser', 'name affiliateCode')
+        .sort('-createdAt').limit(20),
+      EmiInstallment.aggregate([
+        { $match: { managerUser: new mongoose.Types.ObjectId(managerId), managerCommissionPaid: true } },
+        { $group: { _id: null, total: { $sum: '$managerCommissionAmount' } } },
+      ]),
+      EmiInstallment.aggregate([
+        { $match: { managerUser: new mongoose.Types.ObjectId(managerId), managerCommissionPaid: false } },
+        { $group: { _id: null, total: { $sum: '$managerCommissionAmount' } } },
+      ]),
+      User.countDocuments({ managerId, isActive: true }),
+    ]);
+
+    const totalSales = purchases.reduce((s: number, p: any) => s + (p.paidAmount || p.totalAmount || 0), 0);
+    const totalOrders = await PackagePurchase.countDocuments({ partnerUser: { $in: pIds } });
+
+    res.json({
+      success: true,
+      assignedPartners,
+      activePartners,
+      totalOrders,
+      totalSales,
+      earnedCommission: earnedComm[0]?.total || 0,
+      pendingCommission: pendingComm[0]?.total || 0,
+      recentOrders: purchases.slice(0, 10),
+    });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// Assign/unassign manager to partner
+router.patch('/partners/:id/assign-manager', async (req, res) => {
+  try {
+    const { managerId } = req.body;
+    const update: any = managerId ? { managerId } : { managerId: null };
+    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
+      .select('name email affiliateCode managerId')
+      .populate('managerId', 'name email');
+    if (!user) return res.status(404).json({ success: false, message: 'Partner not found' });
+    res.json({ success: true, user });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.patch('/partners/:id/promo-discount', async (req, res) => {
+  try {
+    const { promoDiscountPercent } = req.body;
+    if (typeof promoDiscountPercent !== 'number' || promoDiscountPercent < 0 || promoDiscountPercent > 100) {
+      return res.status(400).json({ success: false, message: 'Discount must be 0–100' });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { promoDiscountPercent },
+      { new: true }
+    ).select('name email affiliateCode promoDiscountPercent');
+    if (!user) return res.status(404).json({ success: false, message: 'Partner not found' });
+    res.json({ success: true, user });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // Courses — admin full view (ALL statuses)
 router.get('/courses/all', async (req, res) => {
   try {
@@ -281,6 +396,23 @@ router.post('/packages', async (req, res) => {
 router.put('/packages/:id', async (req, res) => {
   try { res.json({ success: true, package: await Package.findByIdAndUpdate(req.params.id, req.body, { new: true }) }); } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
+router.delete('/packages/:id', async (req, res) => {
+  try { await Package.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+// Upsert single earner-tier entry in a package's partnerEarnings
+router.patch('/packages/:id/earner', async (req, res) => {
+  try {
+    const { earnerTierId, earnerTierName, type, value } = req.body;
+    const pkg = await Package.findById(req.params.id);
+    if (!pkg) return res.status(404).json({ success: false, message: 'Not found' });
+    const earnings: any[] = (pkg as any).partnerEarnings || [];
+    const idx = earnings.findIndex((r: any) => r.earnerTier?.toString() === earnerTierId?.toString());
+    const entry = { earnerTier: earnerTierId, earnerName: earnerTierName, type, value };
+    if (idx >= 0) earnings[idx] = entry; else earnings.push(entry);
+    await Package.findByIdAndUpdate(req.params.id, { partnerEarnings: earnings });
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
 
 // Platform Settings
 router.get('/platform-settings', async (_req, res) => {
@@ -292,14 +424,18 @@ router.get('/platform-settings', async (_req, res) => {
 });
 router.put('/platform-settings', async (req, res) => {
   try {
-    const { tdsRate, gstRate, minWithdrawalAmount } = req.body;
+    const { tdsRate, gstRate, minWithdrawalAmount, webinarLink, webinarTitle, webinarDate, presentationVideoLink } = req.body;
     let settings = await PlatformSettings.findOne();
     if (!settings) {
-      settings = await PlatformSettings.create({ tdsRate, gstRate, minWithdrawalAmount });
+      settings = await PlatformSettings.create({ tdsRate, gstRate, minWithdrawalAmount, webinarLink, webinarTitle, webinarDate, presentationVideoLink });
     } else {
       if (tdsRate !== undefined) settings.tdsRate = tdsRate;
       if (gstRate !== undefined) settings.gstRate = gstRate;
       if (minWithdrawalAmount !== undefined) settings.minWithdrawalAmount = minWithdrawalAmount;
+      if (webinarLink !== undefined) settings.webinarLink = webinarLink;
+      if (webinarTitle !== undefined) settings.webinarTitle = webinarTitle;
+      if (webinarDate !== undefined) settings.webinarDate = webinarDate;
+      if (presentationVideoLink !== undefined) settings.presentationVideoLink = presentationVideoLink;
       await settings.save();
     }
     res.json({ success: true, settings });
@@ -778,6 +914,405 @@ router.post('/notify', async (req, res) => {
     const notifications = users.map((u: any) => ({ user: u._id, title, message, type: type || 'info', channel: 'inapp' }));
     await Notification.insertMany(notifications);
     res.json({ success: true, sent: notifications.length });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── GET /api/admin/emi ─────────────────────────────────────────────────────────
+router.get('/emi', async (req, res) => {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+    const { status } = req.query;
+
+    const filter: any = {};
+    if (status && status !== 'all') filter.status = status;
+
+    const installments = await EmiInstallment.find(filter)
+      .populate('user', 'name email phone wallet packageSuspended')
+      .populate('packagePurchase', 'packageTier amount totalAmount affiliateCode referredBy')
+      .populate('partnerUser', 'name phone affiliateCode')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Group by packagePurchase
+    const grouped: Record<string, any> = {};
+    for (const inst of installments) {
+      const ppId = (inst.packagePurchase as any)?._id?.toString() || inst.packagePurchase?.toString() || 'unknown';
+      if (!grouped[ppId]) {
+        grouped[ppId] = {
+          packagePurchase: inst.packagePurchase,
+          user: inst.user,
+          installments: [],
+        };
+      }
+      grouped[ppId].installments.push(inst);
+    }
+    const groups = Object.values(grouped);
+
+    // Stats
+    const [totalEmi, totalOverdue, totalPaid] = await Promise.all([
+      EmiInstallment.countDocuments({ installmentNumber: 1 }),
+      EmiInstallment.countDocuments({ status: 'overdue' }),
+      EmiInstallment.countDocuments({ status: 'paid' }),
+    ]);
+    const collectedAgg = await EmiInstallment.aggregate([
+      { $match: { status: 'paid' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const totalCollected = collectedAgg[0]?.total || 0;
+
+    res.json({
+      success: true,
+      groups,
+      installments,
+      stats: {
+        totalEmiPurchases: totalEmi,
+        totalOverdue,
+        totalPaid,
+        totalCollected,
+      },
+    });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── POST /api/admin/emi/:installmentId/collect-wallet ─────────────────────────
+router.post('/emi/:installmentId/collect-wallet', async (req, res) => {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+    const Transaction = (await import('../models/Transaction')).default;
+    const Commission = (await import('../models/Commission')).default;
+
+    const inst = await EmiInstallment.findById(req.params.installmentId)
+      .populate('user', 'name email phone wallet packageSuspended')
+      .populate('packagePurchase', 'packageTier totalAmount');
+    if (!inst) return res.status(404).json({ success: false, message: 'Installment not found' });
+    if (inst.status === 'paid') return res.status(400).json({ success: false, message: 'Already paid' });
+
+    const userDoc = inst.user as any;
+    const walletBalance = userDoc?.wallet || 0;
+    if (walletBalance <= 0) return res.status(400).json({ success: false, message: `User wallet is empty (₹${walletBalance})` });
+
+    const alreadyUsed = (inst as any).walletAmountUsed || 0;
+    const stillNeeded = inst.amount - alreadyUsed;
+    if (stillNeeded <= 0) {
+      inst.status = 'paid'; inst.paidAt = new Date();
+      await inst.save();
+      return res.json({ success: true, fullyPaid: true, message: 'Already fully covered by wallet.', walletUsed: 0, remaining: 0 });
+    }
+    const walletToUse = Math.min(walletBalance, stillNeeded);
+    const remaining = stillNeeded - walletToUse;
+
+    // Deduct from user wallet
+    const updatedUser = await User.findByIdAndUpdate(
+      userDoc._id,
+      { $inc: { wallet: -walletToUse } },
+      { new: true }
+    );
+    await Transaction.create({
+      user: userDoc._id, type: 'debit', category: 'emi_payment',
+      amount: walletToUse,
+      description: `Admin collected EMI installment ${inst.installmentNumber}/${inst.totalInstallments} from wallet`,
+      referenceId: String(inst._id), status: 'completed',
+      balanceAfter: updatedUser?.wallet || 0,
+    });
+
+    (inst as any).walletAmountUsed = alreadyUsed + walletToUse;
+
+    if (remaining === 0) {
+      // Fully paid from wallet
+      inst.status = 'paid';
+      inst.paidAt = new Date();
+      await inst.save();
+
+      // Unlock access if no more pending/overdue
+      const stillDue = await EmiInstallment.findOne({
+        packagePurchase: inst.packagePurchase,
+        status: { $in: ['pending', 'overdue'] },
+        _id: { $ne: inst._id },
+      });
+      if (!stillDue) await User.findByIdAndUpdate(userDoc._id, { packageSuspended: false });
+
+      // Credit partner commission
+      if ((inst as any).partnerUser && !(inst as any).partnerCommissionPaid && (inst as any).partnerCommissionAmount > 0) {
+        const commAmt = (inst as any).partnerCommissionAmount;
+        const updatedPartner = await User.findByIdAndUpdate(
+          (inst as any).partnerUser,
+          { $inc: { wallet: commAmt, totalEarnings: commAmt } },
+          { new: true }
+        );
+        await Transaction.create({
+          user: (inst as any).partnerUser, type: 'credit', category: 'affiliate_commission',
+          amount: commAmt,
+          description: `EMI installment ${inst.installmentNumber} commission`,
+          referenceId: String(inst._id), status: 'completed',
+          balanceAfter: updatedPartner?.wallet || 0,
+        });
+        await Commission.create({
+          earner: (inst as any).partnerUser, buyer: inst.user,
+          saleAmount: inst.amount, commissionAmount: commAmt,
+          saleType: 'package', status: 'approved', level: 1, levelRate: 0,
+          earnerCommissionRate: 0, earnerTier: (await User.findById((inst as any).partnerUser).select('packageTier'))?.packageTier || 'basic',
+          buyerPackageTier: (inst.packagePurchase as any)?.packageTier || '',
+          packagePurchaseId: inst.packagePurchase,
+        });
+        await EmiInstallment.findByIdAndUpdate(inst._id, { partnerCommissionPaid: true });
+        await User.findByIdAndUpdate((inst as any).partnerUser, {
+          $push: { notifications: { type: 'commission', message: `₹${commAmt} EMI commission received (Inst ${inst.installmentNumber}/${inst.totalInstallments})`, read: false, createdAt: new Date() } }
+        });
+      }
+
+      // Credit manager commission
+      if ((inst as any).managerUser && !(inst as any).managerCommissionPaid && (inst as any).managerCommissionAmount > 0) {
+        const mgrAmt = (inst as any).managerCommissionAmount;
+        await User.findByIdAndUpdate((inst as any).managerUser, { $inc: { wallet: mgrAmt, totalEarnings: mgrAmt } });
+        await Transaction.create({
+          user: (inst as any).managerUser, type: 'credit', category: 'affiliate_commission',
+          amount: mgrAmt, description: `Manager EMI commission (Inst ${inst.installmentNumber}/${inst.totalInstallments})`,
+          referenceId: String(inst._id), status: 'completed',
+        });
+        await EmiInstallment.findByIdAndUpdate(inst._id, { managerCommissionPaid: true });
+      }
+
+      return res.json({
+        success: true, fullyPaid: true,
+        message: `₹${walletToUse} collected from wallet. Installment fully paid.`,
+        walletUsed: walletToUse, remaining: 0,
+        newWalletBalance: updatedUser?.wallet || 0,
+      });
+    }
+
+    // Partial — mark walletAmountUsed, remaining to be paid via link
+    await inst.save();
+    return res.json({
+      success: true, fullyPaid: false,
+      message: `₹${walletToUse} collected from wallet. ₹${remaining} still pending.`,
+      walletUsed: walletToUse, remaining,
+      newWalletBalance: updatedUser?.wallet || 0,
+    });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── PATCH /api/admin/emi/:installmentId/mark-paid ─────────────────────────────
+router.patch('/emi/:installmentId/mark-paid', async (req, res) => {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+    const Transaction = (await import('../models/Transaction')).default;
+    const Commission = (await import('../models/Commission')).default;
+
+    const inst = await EmiInstallment.findById(req.params.installmentId)
+      .populate('user', 'name email phone wallet packageSuspended')
+      .populate('packagePurchase', 'packageTier totalAmount');
+    if (!inst) return res.status(404).json({ success: false, message: 'Installment not found' });
+    if (inst.status === 'paid') return res.status(400).json({ success: false, message: 'Already paid' });
+
+    inst.status = 'paid';
+    inst.paidAt = new Date();
+    await inst.save();
+
+    // Credit partner commission if pending
+    if ((inst as any).partnerUser && (inst as any).partnerCommissionAmount > 0 && !(inst as any).partnerCommissionPaid) {
+      const commAmt = (inst as any).partnerCommissionAmount;
+      const updatedPartner = await User.findByIdAndUpdate(
+        (inst as any).partnerUser,
+        { $inc: { wallet: commAmt, totalEarnings: commAmt } },
+        { new: true }
+      );
+      await Transaction.create({
+        user: (inst as any).partnerUser, type: 'credit', category: 'affiliate_commission',
+        amount: commAmt, description: `EMI commission — installment ${inst.installmentNumber}/${inst.totalInstallments}`,
+        referenceId: inst._id, status: 'completed',
+        balanceAfter: updatedPartner?.wallet || 0,
+      });
+      await Commission.create({
+        earner: (inst as any).partnerUser, buyer: inst.user,
+        saleAmount: inst.amount, commissionAmount: commAmt,
+        saleType: 'package', status: 'approved', level: 1, levelRate: 0,
+        earnerCommissionRate: 0, earnerTier: (await User.findById((inst as any).partnerUser).select('packageTier'))?.packageTier || 'basic',
+        buyerPackageTier: (inst.packagePurchase as any)?.packageTier || '',
+        packagePurchaseId: inst.packagePurchase,
+      });
+      await User.findByIdAndUpdate((inst as any).partnerUser, {
+        $push: { notifications: { type: 'commission', message: `₹${commAmt} EMI commission received (Inst ${inst.installmentNumber}/${inst.totalInstallments})`, read: false, createdAt: new Date() } }
+      });
+      (inst as any).partnerCommissionPaid = true;
+      await inst.save();
+    }
+
+    // Credit manager commission
+    if ((inst as any).managerUser && (inst as any).managerCommissionAmount > 0 && !(inst as any).managerCommissionPaid) {
+      const mgrAmt = (inst as any).managerCommissionAmount;
+      await User.findByIdAndUpdate((inst as any).managerUser, { $inc: { wallet: mgrAmt, totalEarnings: mgrAmt } });
+      await Transaction.create({
+        user: (inst as any).managerUser, type: 'credit', category: 'affiliate_commission',
+        amount: mgrAmt, description: `Manager EMI commission — installment ${inst.installmentNumber}/${inst.totalInstallments}`,
+        referenceId: inst._id, status: 'completed',
+      });
+      await User.findByIdAndUpdate((inst as any).managerUser, {
+        $push: { notifications: { type: 'commission', message: `₹${mgrAmt} manager EMI commission (Inst ${inst.installmentNumber}/${inst.totalInstallments})`, read: false, createdAt: new Date() } }
+      });
+      (inst as any).managerCommissionPaid = true;
+      await inst.save();
+    }
+
+    // Unlock access if no more overdue/pending installments
+    const remaining = await EmiInstallment.findOne({
+      packagePurchase: inst.packagePurchase,
+      status: { $in: ['pending', 'overdue'] },
+    });
+    if (!remaining) {
+      await User.findByIdAndUpdate(inst.user, { packageSuspended: false });
+    }
+
+    res.json({ success: true, message: 'Installment marked as paid', installment: inst });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── PATCH /api/admin/emi/:packagePurchaseId/toggle-access ──────────────────────
+router.patch('/emi/:packagePurchaseId/toggle-access', async (req, res) => {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+    const { lock } = req.body; // true = lock, false = unlock
+    const inst = await EmiInstallment.findOne({ packagePurchase: req.params.packagePurchaseId });
+    if (!inst) return res.status(404).json({ success: false, message: 'No installments found' });
+    const updated = await User.findByIdAndUpdate(
+      inst.user,
+      { packageSuspended: !!lock },
+      { new: true }
+    ).select('name packageSuspended');
+    res.json({ success: true, message: lock ? 'Access locked' : 'Access unlocked', user: updated });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Salesperson Management ──────────────────────────────────────────────────
+router.get('/salespersons', async (req, res) => {
+  try {
+    const { search, page = 1, limit = 30 } = req.query as any;
+    const filter: any = { role: 'salesperson' };
+    if (search) filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+      { phone: { $regex: search, $options: 'i' } },
+    ];
+    const skip = (Number(page) - 1) * Number(limit);
+    const SalesOrder = (await import('../models/SalesOrder')).default;
+    const salespersons = await User.find(filter)
+      .select('name email phone affiliateCode totalEarnings wallet isActive createdAt department')
+      .sort('-createdAt').skip(skip).limit(Number(limit));
+
+    const enriched = await Promise.all(salespersons.map(async s => {
+      const [totalOrders, paidOrders] = await Promise.all([
+        SalesOrder.countDocuments({ salesperson: s._id }),
+        SalesOrder.countDocuments({ salesperson: s._id, status: 'paid' }),
+      ]);
+      return { ...s.toObject(), totalOrders, paidOrders };
+    }));
+
+    const total = await User.countDocuments(filter);
+    res.json({ success: true, salespersons: enriched, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.post('/leads/assign', async (req, res) => {
+  try {
+    const Lead = (await import('../models/Lead')).default;
+    const { leadIds, salespersonId } = req.body;
+    if (!leadIds?.length || !salespersonId) {
+      return res.status(400).json({ success: false, message: 'leadIds and salespersonId are required' });
+    }
+    await Lead.updateMany({ _id: { $in: leadIds } }, { assignedTo: salespersonId });
+    res.json({ success: true, message: `${leadIds.length} lead(s) assigned` });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.get('/sales-orders', async (req, res) => {
+  try {
+    const SalesOrder = (await import('../models/SalesOrder')).default;
+    const { status, salesperson, page = 1, limit = 20 } = req.query as any;
+    const filter: any = {};
+    if (status) filter.status = status;
+    if (salesperson) filter.salesperson = salesperson;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [orders, total] = await Promise.all([
+      SalesOrder.find(filter)
+        .populate('salesperson', 'name email phone')
+        .populate('package', 'name tier price')
+        .sort('-createdAt').skip(skip).limit(Number(limit)),
+      SalesOrder.countDocuments(filter),
+    ]);
+    res.json({ success: true, orders, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.get('/sales-stats', async (_req, res) => {
+  try {
+    const SalesOrder = (await import('../models/SalesOrder')).default;
+    const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+    const [totalSalespersons, totalOrders, paidOrders, monthlyOrders] = await Promise.all([
+      User.countDocuments({ role: 'salesperson' }),
+      SalesOrder.countDocuments(),
+      SalesOrder.countDocuments({ status: 'paid' }),
+      SalesOrder.countDocuments({ status: 'paid', createdAt: { $gte: startOfMonth } }),
+    ]);
+    const revenue = await SalesOrder.aggregate([
+      { $match: { status: 'paid' } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' }, commissions: { $sum: '$commissionAmount' } } },
+    ]);
+    res.json({ success: true, stats: {
+      totalSalespersons, totalOrders, paidOrders, monthlyOrders,
+      totalRevenue: revenue[0]?.total || 0,
+      totalCommissions: revenue[0]?.commissions || 0,
+    }});
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Individual Salesperson Performance ───────────────────────────────────────
+router.get('/salespersons/:id/performance', async (req, res) => {
+  try {
+    const SalesOrder = (await import('../models/SalesOrder')).default;
+    const Lead = (await import('../models/Lead')).default;
+    const Commission = (await import('../models/Commission')).default;
+    const mongoose = (await import('mongoose')).default;
+    const { id } = req.params;
+    const { stage: stageFilter, dateFilter } = req.query as any;
+    const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+
+    // Build lead filter for assigned leads list (with optional stage/date)
+    const leadFilter: any = { assignedTo: new mongoose.Types.ObjectId(id) };
+    if (stageFilter) leadFilter.stage = stageFilter;
+    if (dateFilter === 'today') {
+      const s = new Date(); s.setHours(0,0,0,0);
+      leadFilter.createdAt = { $gte: s };
+    } else if (dateFilter === '7d') {
+      const s = new Date(); s.setDate(s.getDate() - 7);
+      leadFilter.createdAt = { $gte: s };
+    } else if (dateFilter === '30d') {
+      const s = new Date(); s.setDate(s.getDate() - 30);
+      leadFilter.createdAt = { $gte: s };
+    }
+
+    const [
+      salesperson, totalLeads, leadsByStageAgg, assignedLeads, orders, monthOrders, commissions
+    ] = await Promise.all([
+      User.findById(id).select('name email phone affiliateCode totalEarnings wallet isActive department'),
+      Lead.countDocuments({ assignedTo: id }),
+      Lead.aggregate([
+        { $match: { assignedTo: new mongoose.Types.ObjectId(id) } },
+        { $group: { _id: '$stage', count: { $sum: 1 } } },
+      ]),
+      Lead.find(leadFilter).sort('-updatedAt').limit(50).lean(),
+      SalesOrder.find({ salesperson: id })
+        .populate('package', 'name tier')
+        .sort('-createdAt').limit(20),
+      SalesOrder.countDocuments({ salesperson: id, status: 'paid', createdAt: { $gte: startOfMonth } }),
+      Commission.aggregate([
+        { $match: { earner: new mongoose.Types.ObjectId(id), status: 'approved' } },
+        { $group: { _id: null, total: { $sum: '$commissionAmount' }, month: { $sum: { $cond: [{ $gte: ['$createdAt', startOfMonth] }, '$commissionAmount', 0] } } } },
+      ]),
+    ]);
+
+    const stageMap: Record<string, number> = {};
+    for (const s of leadsByStageAgg) stageMap[s._id] = s.count;
+
+    res.json({ success: true, salesperson, totalLeads, leadsByStage: stageMap, assignedLeads, orders, monthOrders, totalCommissions: commissions[0]?.total || 0, monthCommissions: commissions[0]?.month || 0 });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 

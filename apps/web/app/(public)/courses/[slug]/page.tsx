@@ -1,6 +1,6 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { courseAPI, paymentAPI } from '@/lib/api'
+import api, { courseAPI, paymentAPI } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -10,8 +10,8 @@ import {
   ChevronDown, ChevronUp, Shield, Tv, Download, Infinity as InfinityIcon,
   ArrowRight, BadgeCheck, Flame
 } from 'lucide-react'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 
@@ -80,8 +80,15 @@ function ModuleAccordion({ mod, idx }: { mod: any; idx: number }) {
 
 export default function CourseDetailPage({ params }: { params: { slug: string } }) {
   const [enrolling, setEnrolling] = useState(false)
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, updateUser } = useAuthStore()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const refCode = searchParams.get('ref') || ''
+
+  // Store ref code in localStorage so it persists through registration
+  useEffect(() => {
+    if (refCode) localStorage.setItem('affiliateRef', refCode)
+  }, [refCode])
 
   const { data: course, isLoading } = useQuery({
     queryKey: ['course', params.slug],
@@ -89,7 +96,17 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
   })
 
   const handleEnroll = async () => {
-    if (!isAuthenticated()) return router.push('/register')
+    const affiliate = refCode || (typeof window !== 'undefined' ? localStorage.getItem('affiliateRef') || '' : '')
+    if (!isAuthenticated()) {
+      const price = course?.discountPrice || course?.price || 0
+      if (price > 0) {
+        // Paid course → direct to checkout (guest form is shown there)
+        return router.push(`/checkout?type=course&id=${course._id}${affiliate ? `&promo=${affiliate}` : ''}`)
+      } else {
+        // Free course → login first then enroll
+        return router.push(`/login?redirect=${encodeURIComponent(`/courses/${params.slug}${affiliate ? `?ref=${affiliate}` : ''}`)}`)
+      }
+    }
     try {
       setEnrolling(true)
       const price = course.discountPrice || course.price
@@ -98,7 +115,7 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
         router.push(`/student/courses/${course._id}`)
         return
       }
-      const orderRes = await paymentAPI.createOrder({ courseId: course._id })
+      const orderRes = await paymentAPI.createOrder({ courseId: course._id, affiliateCode: affiliate || undefined })
       const { orderId, amount, currency, keyId } = orderRes.data
       const script = document.createElement('script')
       script.src = 'https://checkout.razorpay.com/v1/checkout.js'
@@ -116,6 +133,10 @@ export default function CourseDetailPage({ params }: { params: { slug: string } 
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature
               })
+              // Refresh user so isAffiliate + enrollmentCount are current before navigating
+              const me = await api.get('/users/me')
+              if (me.data?.user) updateUser(me.data.user)
+              if (typeof me.data?.enrollmentCount === 'number') updateUser({ enrollmentCount: me.data.enrollmentCount })
               toast.success('Enrolled! 🎉')
               router.push(`/student/courses/${course._id}`)
             } catch { toast.error('Payment verification failed') }

@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ITransaction extends Document {
   user: mongoose.Types.ObjectId;
   type: 'credit' | 'debit';
-  category: 'course_sale' | 'affiliate_commission' | 'withdrawal' | 'refund' | 'bonus';
+  category: 'course_sale' | 'affiliate_commission' | 'withdrawal' | 'refund' | 'bonus' | 'emi_payment';
   amount: number;
   description: string;
   referenceId?: string;
@@ -15,7 +15,7 @@ export interface ITransaction extends Document {
 const TransactionSchema = new Schema<ITransaction>({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   type: { type: String, enum: ['credit', 'debit'], required: true },
-  category: { type: String, enum: ['course_sale', 'affiliate_commission', 'withdrawal', 'refund', 'bonus'], required: true },
+  category: { type: String, enum: ['course_sale', 'affiliate_commission', 'withdrawal', 'refund', 'bonus', 'emi_payment'], required: true },
   amount: { type: Number, required: true },
   description: { type: String, required: true },
   referenceId: String,

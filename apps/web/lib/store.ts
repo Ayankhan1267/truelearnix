@@ -7,7 +7,7 @@ interface User {
   name: string;
   email: string;
   phone?: string;
-  role: 'admin' | 'superadmin' | 'manager' | 'mentor' | 'student';
+  role: 'admin' | 'superadmin' | 'manager' | 'mentor' | 'student' | 'salesperson';
   avatar?: string;
   wallet?: number;
   totalEarnings?: number;
@@ -37,6 +37,7 @@ interface User {
   };
   loginCount?: number;
   createdAt?: string;
+  enrollmentCount?: number;
 }
 
 interface AuthStore {

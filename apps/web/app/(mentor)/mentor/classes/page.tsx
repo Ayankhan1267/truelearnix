@@ -1,169 +1,165 @@
 'use client'
-import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { classAPI, courseAPI, mentorAPI } from '@/lib/api'
-import { Video, Plus, Loader2, Play, Square, X, Users, Clock, Calendar, Zap, CheckCircle2 } from 'lucide-react'
-import { format, formatDistanceToNow, isFuture } from 'date-fns'
+import { classAPI } from '@/lib/api'
+import { Video, Plus, Calendar, Clock, Users, Play, Square, X, ExternalLink, Radio } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 
-const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  scheduled: { label: 'Scheduled', cls: 'bg-blue-500/20 text-blue-400' },
-  live:      { label: 'LIVE',      cls: 'bg-red-500/20 text-red-400 animate-pulse' },
-  ended:     { label: 'Ended',     cls: 'bg-gray-500/20 text-gray-400' },
-  cancelled: { label: 'Cancelled', cls: 'bg-red-500/10 text-red-400' },
-}
-
-export default function MentorClasses() {
-  const qc = useQueryClient()
+export default function MentorClassesPage() {
   const router = useRouter()
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', courseId: '', scheduledAt: '', duration: '60', platform: 'zoom' })
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
-
+  const qc = useQueryClient()
   const { data: classes, isLoading } = useQuery({
     queryKey: ['mentor-classes'],
-    queryFn: () => mentorAPI.myClasses().then(r => r.data.classes),
-  })
-  const { data: courses } = useQuery({
-    queryKey: ['mentor-courses'],
-    queryFn: () => courseAPI.myMentorCourses().then(r => r.data.courses),
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (data: any) => classAPI.create(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['mentor-classes'] })
-      setShowForm(false)
-      setForm({ title: '', courseId: '', scheduledAt: '', duration: '60', platform: 'zoom' })
-      toast.success('Class scheduled!')
-    },
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
+    queryFn: () => classAPI.upcoming().then(r => r.data.classes)
   })
 
   const startMutation = useMutation({
     mutationFn: (id: string) => classAPI.start(id),
-    onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: ['mentor-classes'] })
-      toast.success('Class started!')
-      router.push(`/mentor/classes/${id}`)
-    },
+    onSuccess: (_, id) => { qc.invalidateQueries({ queryKey: ['mentor-classes'] }); router.push(`/mentor/classes/${id}`) },
+    onError: () => toast.error('Could not start class')
   })
+
   const endMutation = useMutation({
     mutationFn: (id: string) => classAPI.end(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mentor-classes'] }); toast.success('Class ended') },
+    onError: () => toast.error('Could not end class')
   })
+
   const cancelMutation = useMutation({
     mutationFn: (id: string) => classAPI.cancel(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mentor-classes'] }); toast.success('Class cancelled') },
+    onError: () => toast.error('Could not cancel class')
   })
+
+  const statusColor: Record<string, string> = {
+    scheduled: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    live: 'bg-green-500/20 text-green-400 border-green-500/30',
+    ended: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Live Classes</h1>
-          <p className="text-gray-400 mt-1">Schedule and manage your live sessions</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white">Live Classes</h1>
+          <p className="text-gray-400 mt-1 text-sm">Schedule and manage your live sessions</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
+        <Link href="/mentor/classes/new"
+          className="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm w-fit">
           <Plus className="w-4 h-4" /> Schedule Class
-        </button>
+        </Link>
       </div>
 
-      {/* Schedule Form */}
-      {showForm && (
-        <div className="card space-y-4">
-          <h2 className="text-lg font-bold text-white">Schedule New Class</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm text-gray-400 mb-1">Class Title *</label>
-              <input value={form.title} onChange={e => set('title', e.target.value)} className="input" placeholder="e.g. Digital Marketing Module 1" />
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Total', value: classes?.length || 0, icon: Video, color: 'text-purple-400 bg-purple-500/10' },
+          { label: 'Live Now', value: classes?.filter((c: any) => c.status === 'live').length || 0, icon: Radio, color: 'text-green-400 bg-green-500/10' },
+          { label: 'Upcoming', value: classes?.filter((c: any) => c.status === 'scheduled').length || 0, icon: Calendar, color: 'text-blue-400 bg-blue-500/10' },
+          { label: 'Total Students', value: classes?.reduce((a: number, c: any) => a + (c.attendees?.length || 0), 0) || 0, icon: Users, color: 'text-yellow-400 bg-yellow-500/10' },
+        ].map((s, i) => (
+          <div key={i} className="bg-dark-800 rounded-xl p-4 border border-white/5 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color}`}>
+              <s.icon className="w-4 h-4" />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Course</label>
-              <select value={form.courseId} onChange={e => set('courseId', e.target.value)} className="input">
-                <option value="">— General Session —</option>
-                {courses?.map((c: any) => <option key={c._id} value={c._id}>{c.title}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Date & Time *</label>
-              <input value={form.scheduledAt} onChange={e => set('scheduledAt', e.target.value)} type="datetime-local" className="input" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Duration (minutes)</label>
-              <input value={form.duration} onChange={e => set('duration', e.target.value)} type="number" className="input" min="15" max="300" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Platform</label>
-              <select value={form.platform} onChange={e => set('platform', e.target.value)} className="input">
-                <option value="zoom">Zoom (auto-created)</option>
-              </select>
+              <p className="text-xl font-bold text-white">{s.value}</p>
+              <p className="text-xs text-gray-400">{s.label}</p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => createMutation.mutate({ ...form, duration: Number(form.duration) })}
-              disabled={createMutation.isPending || !form.title || !form.scheduledAt}
-              className="btn-primary flex items-center gap-2">
-              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-              Schedule
-            </button>
-            <button onClick={() => setShowForm(false)} className="btn-outline">Cancel</button>
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {/* Classes List */}
+      {/* Classes list */}
       {isLoading ? (
-        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-400" /></div>
-      ) : classes?.length === 0 ? (
-        <div className="card text-center py-16">
-          <Video className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">No classes scheduled yet.</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <div key={i} className="bg-dark-800 rounded-2xl h-28 animate-pulse border border-white/5" />)}
+        </div>
+      ) : !classes?.length ? (
+        <div className="bg-dark-800 rounded-2xl p-12 border border-white/5 text-center">
+          <div className="w-16 h-16 bg-primary-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Video className="w-8 h-8 text-primary-400" />
+          </div>
+          <h3 className="text-white font-bold text-lg mb-2">No classes yet</h3>
+          <p className="text-gray-400 text-sm mb-6">Schedule your first live class to get started</p>
+          <Link href="/mentor/classes/new" className="btn-primary text-sm px-6 py-2.5">
+            + Schedule Your First Class
+          </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {classes?.map((cls: any) => (
-            <div key={cls._id} className="card flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="w-12 h-12 bg-primary-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Video className="w-6 h-6 text-primary-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-white">{cls.title}</h3>
-                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_BADGE[cls.status] || STATUS_BADGE.scheduled}`}>{cls.status}</span>
+        <div className="space-y-3">
+          {classes.map((cls: any) => (
+            <div key={cls._id}
+              className={`bg-dark-800 rounded-2xl p-4 lg:p-5 border transition-all ${cls.status === 'live' ? 'border-green-500/30 shadow-lg shadow-green-500/5' : 'border-white/5 hover:border-white/10'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Left: icon + info */}
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${cls.status === 'live' ? 'bg-green-500/20' : 'bg-primary-500/10'}`}>
+                    {cls.status === 'live'
+                      ? <Radio className="w-6 h-6 text-green-400 animate-pulse" />
+                      : <Video className="w-6 h-6 text-primary-400" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-white truncate">{cls.title}</h3>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusColor[cls.status] || statusColor.scheduled}`}>
+                        {cls.status === 'live' ? '● LIVE' : cls.status}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${cls.platform === 'zoom' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                        {cls.platform === 'zoom' ? 'Zoom' : 'WebRTC'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-0.5 truncate">{cls.course?.title}</p>
+                    <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(cls.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(cls.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} • {cls.duration}min</span>
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3" />{cls.attendees?.length || 0} joined</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-400 mt-0.5">
-                  {format(new Date(cls.scheduledAt), 'dd MMM yyyy, hh:mm a')} • {cls.duration} min
-                  {cls.course && ` • ${cls.course.title}`}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {cls.status === 'live' && (
-                  <Link href={`/mentor/classes/${cls._id}`}
-                    className="flex items-center gap-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-lg">
-                    <Zap className="w-3.5 h-3.5" /> Rejoin
-                  </Link>
-                )}
-                {cls.status === 'scheduled' && (
-                  <>
-                    <button onClick={() => startMutation.mutate(cls._id)} disabled={startMutation.isPending}
-                      className="flex items-center gap-1.5 text-sm bg-green-500/20 text-green-400 hover:bg-green-500/30 px-3 py-1.5 rounded-lg">
-                      <Play className="w-3.5 h-3.5" /> Start
-                    </button>
-                    <button onClick={() => cancelMutation.mutate(cls._id)} disabled={cancelMutation.isPending}
-                      className="flex items-center gap-1.5 text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded-lg">
-                      <X className="w-3.5 h-3.5" /> Cancel
-                    </button>
-                  </>
-                )}
-                {cls.status === 'live' && (
-                  <button onClick={() => endMutation.mutate(cls._id)} disabled={endMutation.isPending}
-                    className="flex items-center gap-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-lg">
-                    <Square className="w-3.5 h-3.5" /> End Class
-                  </button>
-                )}
+
+                {/* Right: actions */}
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                  {cls.status === 'scheduled' && (
+                    <>
+                      <button
+                        onClick={() => startMutation.mutate(cls._id)}
+                        disabled={startMutation.isPending}
+                        className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+                        <Play className="w-4 h-4" /> Start
+                      </button>
+                      <button
+                        onClick={() => cancelMutation.mutate(cls._id)}
+                        disabled={cancelMutation.isPending}
+                        className="flex items-center gap-1.5 bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-400 text-sm px-3 py-2 rounded-xl transition-colors border border-white/5">
+                        <X className="w-4 h-4" /> Cancel
+                      </button>
+                    </>
+                  )}
+                  {cls.status === 'live' && (
+                    <>
+                      <Link href={`/mentor/classes/${cls._id}`}
+                        className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors animate-pulse">
+                        <Radio className="w-4 h-4" /> Enter Class
+                      </Link>
+                      <button
+                        onClick={() => endMutation.mutate(cls._id)}
+                        disabled={endMutation.isPending}
+                        className="flex items-center gap-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm px-3 py-2 rounded-xl transition-colors border border-red-500/30">
+                        <Square className="w-4 h-4" /> End
+                      </button>
+                    </>
+                  )}
+                  {cls.status === 'ended' && cls.zoomJoinUrl && (
+                    <a href={cls.zoomJoinUrl} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white px-3 py-2 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                      <ExternalLink className="w-4 h-4" /> Recording
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ))}

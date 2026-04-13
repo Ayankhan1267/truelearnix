@@ -619,10 +619,81 @@ export function initNovaCrons(config?: any) {
   }
 }
 
+// ── EMI Reminder Cron (runs daily at 9 AM IST) ────────────────────────────────
+async function runEmiReminders() {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+    const { sendPurchaseWelcomeEmail } = await import('../services/emailService');
+    const webUrl = process.env.WEB_URL || 'https://peptly.in';
+
+    const now = new Date();
+
+    // 1. Reminders for due in 3 days
+    const in3Days = new Date(now); in3Days.setDate(in3Days.getDate() + 3);
+    const in3Start = new Date(in3Days); in3Start.setHours(0, 0, 0, 0);
+    const in3End = new Date(in3Days); in3End.setHours(23, 59, 59, 999);
+
+    const dueSoon = await EmiInstallment.find({
+      status: 'pending',
+      dueDate: { $gte: in3Start, $lte: in3End },
+    }).populate('user', 'name email phone').lean();
+
+    for (const inst of dueSoon) {
+      const user = inst.user as any;
+      if (!user) continue;
+      const payLink = (inst as any).paymentLink || `${webUrl}/pay/emi/${(inst as any)._id}`;
+      const msg = `⏰ Reminder: Your EMI installment ${inst.installmentNumber}/${inst.totalInstallments} of ₹${inst.amount} is due in 3 days (${new Date(inst.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}).\n\nPay now to avoid access suspension:\n${payLink}`;
+      if (user.phone) { try { await sendWhatsAppText(user.phone, msg); } catch {} }
+    }
+
+    // 2. Due today reminders
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+
+    const dueToday = await EmiInstallment.find({
+      status: 'pending',
+      dueDate: { $gte: todayStart, $lte: todayEnd },
+    }).populate('user', 'name email phone').lean();
+
+    for (const inst of dueToday) {
+      const user = inst.user as any;
+      if (!user) continue;
+      const payLink = (inst as any).paymentLink || `${webUrl}/pay/emi/${(inst as any)._id}`;
+      const msg = `🔔 Today is the last day to pay your EMI installment ${inst.installmentNumber}/${inst.totalInstallments} — ₹${inst.amount}.\n\nPay now to keep your access active:\n${payLink}`;
+      if (user.phone) { try { await sendWhatsAppText(user.phone, msg); } catch {} }
+      if (user.email) { try { await sendPurchaseWelcomeEmail(user.email, user.name, `EMI Due Today — Installment ${inst.installmentNumber}/${inst.totalInstallments}`, user.email, ''); } catch {} }
+    }
+
+    // 3. Mark overdue (7+ days past due) and suspend
+    const overdueThreshold = new Date(now); overdueThreshold.setDate(overdueThreshold.getDate() - 7);
+    const newlyOverdue = await EmiInstallment.find({
+      status: 'pending',
+      dueDate: { $lt: overdueThreshold },
+    }).populate('user', 'name email phone').lean();
+
+    for (const inst of newlyOverdue) {
+      await EmiInstallment.findByIdAndUpdate((inst as any)._id, { status: 'overdue' });
+      const user = inst.user as any;
+      if (!user) continue;
+      await User.findByIdAndUpdate(user._id, { packageSuspended: true });
+      const payLink = (inst as any).paymentLink || `${webUrl}/pay/emi/${(inst as any)._id}`;
+      const msg = `⚠️ Your dashboard access has been suspended! EMI installment ${inst.installmentNumber}/${inst.totalInstallments} of ₹${inst.amount} is overdue.\n\nPay immediately to restore access:\n${payLink}`;
+      if (user.phone) { try { await sendWhatsAppText(user.phone, msg); } catch {} }
+    }
+
+    console.log(`[EMI Cron] due-soon:${dueSoon.length} due-today:${dueToday.length} overdue:${newlyOverdue.length}`);
+  } catch (e) {
+    console.error('[EMI Cron Error]', e);
+  }
+}
+
 export async function bootstrapNovaCrons() {
   try {
     const config = await NovaConfig.findOne();
     if (config) initNovaCrons(config);
+
+    // EMI reminders — daily at 9 AM IST regardless of nova config
+    new CronJob('0 0 9 * * *', runEmiReminders, null, true, 'Asia/Kolkata');
     console.log('[NOVA] Crons initialized');
   } catch (e) {
     console.error('[NOVA] Cron bootstrap error:', e);

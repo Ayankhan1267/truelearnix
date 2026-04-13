@@ -1,13 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, BookOpen, Video, Award, Wallet, TrendingUp, Bot, Users, Briefcase, Star, FileQuestion, LogOut, Lock, User, FolderGit2, FileText } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Video, Award, Wallet, TrendingUp, Bot, Users, Briefcase, Star, FileQuestion, LogOut, Lock, User, FolderGit2, FileText, X } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
 import { authAPI } from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import Logo from '@/components/ui/Logo'
 
-export default function StudentSidebar() {
+export default function StudentSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
   const router = useRouter()
@@ -38,8 +38,13 @@ export default function StudentSidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-dark-800 border-r border-white/5 flex flex-col z-40">
-      <div className="p-6 border-b border-white/5">
+      <div className="p-6 border-b border-white/5 flex items-center justify-between">
         <Logo size="sm" href="/" />
+        {onClose && (
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 lg:hidden">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
       <div className="p-4 border-b border-white/5">
         <div className="flex items-center gap-3">

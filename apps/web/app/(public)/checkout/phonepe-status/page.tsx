@@ -4,16 +4,20 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { phonepeAPI } from '@/lib/api'
+import api from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
 
 function PhonePeStatusInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { updateUser } = useAuthStore()
 
   const orderId = searchParams.get('orderId') || ''
   const type = searchParams.get('type') || 'package'
   const tier = searchParams.get('tier') || ''
   const courseId = searchParams.get('courseId') || ''
+  const isEmi = searchParams.get('isEmi') || ''
 
   const [status, setStatus] = useState<'loading' | 'success' | 'failed' | 'pending'>('loading')
   const [message, setMessage] = useState('')
@@ -26,10 +30,15 @@ function PhonePeStatusInner() {
     const interval = setInterval(async () => {
       attempts++
       try {
-        const { data } = await phonepeAPI.getStatus(orderId, { type, tier, courseId })
+        const { data } = await phonepeAPI.getStatus(orderId, { type, tier, courseId, isEmi })
         if (data.success && data.state === 'COMPLETED') {
           clearInterval(interval)
           setMessage(data.message || 'Payment successful!')
+          // Refresh user in store so packageTier is updated immediately
+          try {
+            const meRes = await api.get('/users/me')
+            if (meRes.data?.user) updateUser(meRes.data.user)
+          } catch {}
           setStatus('success')
         } else if (attempts >= maxAttempts) {
           clearInterval(interval)
@@ -46,7 +55,7 @@ function PhonePeStatusInner() {
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [orderId, type, tier, courseId])
+  }, [orderId, type, tier, courseId, isEmi])
 
   if (status === 'loading') {
     return (

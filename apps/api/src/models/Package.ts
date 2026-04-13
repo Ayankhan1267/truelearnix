@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IPartnerEarning {
-  earnerTier: 'starter' | 'pro' | 'elite' | 'supreme';
+  earnerTier: string;
   type: 'percentage' | 'flat';
   value: number; // L1 direct referrer
   l2Type: 'percentage' | 'flat';
@@ -46,8 +46,9 @@ export interface IPackage extends Document {
   personalBrandAccess: boolean;
   mentorSupport: boolean;
   prioritySupport: boolean;
+  promoDiscountPercent: number;
   emiAvailable: boolean;
-  emiMonths?: number;
+  emiDays?: number[];       // day offsets for each installment e.g. [0, 15, 30, 45]
   emiMonthlyAmount?: number;
   isActive: boolean;
   displayOrder: number;
@@ -68,7 +69,7 @@ const PackageSchema = new Schema<IPackage>({
   commissionLevel3: { type: Number, default: 0 },
   commissionLevel3Type: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
   partnerEarnings: [{
-    earnerTier: { type: String, enum: ['starter', 'pro', 'elite', 'supreme'], required: true },
+    earnerTier: { type: String, required: true },
     type: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
     value: { type: Number, default: 0 },
     l2Type: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
@@ -99,8 +100,9 @@ const PackageSchema = new Schema<IPackage>({
   personalBrandAccess: { type: Boolean, default: false },
   mentorSupport: { type: Boolean, default: false },
   prioritySupport: { type: Boolean, default: false },
+  promoDiscountPercent: { type: Number, default: 0, min: 0, max: 100 },
   emiAvailable: { type: Boolean, default: false },
-  emiMonths: Number,
+  emiDays: [Number],
   emiMonthlyAmount: Number,
   isActive: { type: Boolean, default: true },
   displayOrder: { type: Number, default: 0 },

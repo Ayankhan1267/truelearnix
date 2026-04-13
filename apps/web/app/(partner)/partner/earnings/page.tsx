@@ -1,7 +1,7 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
 import { partnerAPI } from '@/lib/api'
-import { TrendingUp, Coins, Users, ArrowUpRight, Clock, Package } from 'lucide-react'
+import { TrendingUp, Coins, Users, ArrowUpRight, Clock, Package, CreditCard, CheckCircle, AlertCircle } from 'lucide-react'
 
 function Bar({ value, max, color }: { value: number, max: number, color: string }) {
   const pct = max > 0 ? (value / max) * 100 : 0
@@ -14,6 +14,7 @@ function Bar({ value, max, color }: { value: number, max: number, color: string 
 
 export default function EarningsPage() {
   const { data, isLoading } = useQuery({ queryKey: ['partner-earnings'], queryFn: () => partnerAPI.earnings().then(r => r.data) })
+  const { data: emiData, isLoading: emiLoading } = useQuery({ queryKey: ['partner-emi-commissions'], queryFn: () => partnerAPI.emiCommissions().then(r => r.data) })
 
   if (isLoading) return (
     <div className="space-y-4">
@@ -27,6 +28,9 @@ export default function EarningsPage() {
   const monthly = data?.monthly || []
   const maxMonth = Math.max(...monthly.map((m: any) => m.total || 0), 1)
   const maxTier = Math.max(...Object.values(byTier as Record<string, number>), 1)
+
+  const emiInstallments: any[] = emiData?.installments || []
+  const emiStats = emiData?.stats || {}
 
   return (
     <div className="space-y-6">
@@ -125,6 +129,75 @@ export default function EarningsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* EMI Commissions */}
+      <div className="bg-dark-800 rounded-2xl border border-dark-700 p-5">
+        <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-violet-400" />
+          EMI Commissions
+        </h3>
+
+        {/* EMI Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="bg-dark-700 rounded-xl p-3 text-center">
+            <p className="text-green-400 text-lg font-bold">₹{((emiStats.totalEarnedCommission || 0)).toLocaleString()}</p>
+            <p className="text-dark-400 text-xs mt-0.5">Earned from EMI</p>
+          </div>
+          <div className="bg-dark-700 rounded-xl p-3 text-center">
+            <p className="text-yellow-400 text-lg font-bold">₹{((emiStats.totalPendingCommission || 0)).toLocaleString()}</p>
+            <p className="text-dark-400 text-xs mt-0.5">Pending (future installments)</p>
+          </div>
+        </div>
+
+        {emiLoading ? (
+          <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-dark-700 rounded-xl animate-pulse" />)}</div>
+        ) : emiInstallments.length === 0 ? (
+          <div className="text-center py-8 text-dark-500 text-sm">No EMI referrals yet</div>
+        ) : (
+          <div className="space-y-3">
+            {emiInstallments.map((inst: any) => {
+              const buyer = inst.user as any
+              const pp = inst.packagePurchase as any
+              const isPaid = inst.status === 'paid'
+              const isOverdue = inst.status === 'overdue'
+              return (
+                <div key={inst._id} className="flex items-center gap-3 p-3 bg-dark-700 rounded-xl">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {buyer?.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{buyer?.name || 'Unknown'}</p>
+                    <p className="text-dark-400 text-xs capitalize">
+                      {pp?.packageTier || 'Package'} · Installment {inst.installmentNumber}/{inst.totalInstallments}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {inst.partnerCommissionAmount > 0 ? (
+                      <p className={`text-sm font-bold ${inst.partnerCommissionPaid ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {inst.partnerCommissionPaid ? '+' : ''}₹{inst.partnerCommissionAmount.toLocaleString()}
+                      </p>
+                    ) : (
+                      <p className="text-dark-500 text-sm">—</p>
+                    )}
+                    <div className="flex items-center gap-1 justify-end mt-0.5">
+                      {isPaid ? (
+                        <CheckCircle className="w-3 h-3 text-green-400" />
+                      ) : isOverdue ? (
+                        <AlertCircle className="w-3 h-3 text-red-400" />
+                      ) : (
+                        <Clock className="w-3 h-3 text-yellow-400" />
+                      )}
+                      <span className={`text-xs capitalize ${isPaid ? 'text-green-400' : isOverdue ? 'text-red-400' : 'text-yellow-400'}`}>
+                        {isPaid ? (inst.partnerCommissionPaid ? 'Credited' : 'Paid') : inst.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

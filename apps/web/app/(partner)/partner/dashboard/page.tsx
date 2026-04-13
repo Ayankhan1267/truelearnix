@@ -1,12 +1,12 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { partnerAPI } from '@/lib/api'
+import { partnerAPI, managerAPI } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
 import {
   TrendingUp, Users, Coins, Trophy, Star, Target, ArrowRight,
   ArrowUpRight, Activity, ChevronRight, Zap, Crown, Flame,
-  Network, ShieldCheck, Link2, Award, Lock
+  Network, ShieldCheck, Link2, Award, Lock, UserCog, MessageSquare, CheckCircle2
 } from 'lucide-react'
 
 function StatCard({ label, value, sub, icon: Icon, gradient, change }: any) {
@@ -50,7 +50,13 @@ function MiniChart({ data, color }: { data: number[], color: string }) {
 
 export default function PartnerDashboard() {
   const { user } = useAuthStore()
-  const { data, isLoading } = useQuery({ queryKey: ['partner-dashboard'], queryFn: () => partnerAPI.dashboard().then(r => r.data) })
+  const { data, isLoading } = useQuery({ queryKey: ['partner-dashboard'], queryFn: () => partnerAPI.dashboard().then(r => r.data), staleTime: 0 })
+  const { data: tipsData } = useQuery({ queryKey: ['my-tips'], queryFn: () => managerAPI.myTips().then(r => r.data), staleTime: 0 })
+  const { data: goalsData } = useQuery({ queryKey: ['my-goals'], queryFn: () => managerAPI.myGoals().then(r => r.data), staleTime: 0 })
+
+  const myTips: any[] = tipsData?.tips || []
+  const myGoals: any[] = goalsData?.goals || []
+  const myManager = data?.manager || myTips[0]?.manager || myGoals[0]?.manager || null
 
   const stats = data?.stats
   const trend = data?.trend || []
@@ -58,6 +64,8 @@ export default function PartnerDashboard() {
   const rank = data?.rank
   const sponsor = data?.sponsor
   const locked = data?.locked
+  const commissionRates = data?.commissionRates
+  const packageCommissions: any[] = data?.packageCommissions || []
 
   const tierColors: Record<string, string> = {
     free: 'from-gray-600 to-gray-700',
@@ -161,22 +169,40 @@ export default function PartnerDashboard() {
         {/* Commission Rates */}
         <div className="bg-dark-800 rounded-2xl border border-dark-700 p-5">
           <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Zap className="w-4 h-4 text-yellow-400" />Your Commission Rates</h3>
-          <div className="space-y-3">
-            {[
-              { level: 'Level 1', rate: `${user?.commissionRate || 0}%`, desc: 'Direct referrals', color: 'text-violet-400' },
-              { level: 'Level 2', rate: '5%', desc: 'L1 referrals', color: 'text-blue-400' },
-              { level: 'Level 3', rate: '2%', desc: 'L2 referrals', color: 'text-cyan-400' },
-            ].map(({ level, rate, desc, color }) => (
-              <div key={level} className="flex items-center justify-between p-3 bg-dark-700 rounded-xl">
-                <div>
-                  <p className="text-white text-sm font-medium">{level}</p>
-                  <p className="text-dark-400 text-xs">{desc}</p>
-                </div>
-                <span className={`${color} text-lg font-bold`}>{rate}</span>
+          {packageCommissions.length > 0 ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 gap-2 px-2 pb-1 border-b border-dark-700">
+                <p className="text-dark-400 text-xs font-medium col-span-1">Package</p>
+                <p className="text-green-400 text-xs font-medium text-right">L1</p>
+                <p className="text-blue-400 text-xs font-medium text-right">L2</p>
+                <p className="text-violet-400 text-xs font-medium text-right">L3</p>
               </div>
-            ))}
+              {packageCommissions.map((pkg: any) => (
+                <div key={pkg.packageId} className="grid grid-cols-4 gap-2 items-center p-2 rounded-xl hover:bg-dark-700 transition-colors">
+                  <div className="min-w-0 col-span-1">
+                    <p className="text-white text-xs font-semibold truncate">{pkg.name}</p>
+                    <p className="text-dark-500 text-[10px]">₹{(pkg.price || 0).toLocaleString()}</p>
+                  </div>
+                  <p className="text-green-400 text-xs font-bold text-right">
+                    {pkg.l1Earn > 0 ? `₹${pkg.l1Earn.toLocaleString()}` : '—'}
+                  </p>
+                  <p className="text-blue-400 text-xs font-bold text-right">
+                    {pkg.l2Earn > 0 ? `₹${pkg.l2Earn.toLocaleString()}` : '—'}
+                  </p>
+                  <p className="text-violet-400 text-xs font-bold text-right">
+                    {pkg.l3Earn > 0 ? `₹${pkg.l3Earn.toLocaleString()}` : '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-dark-400 text-sm text-center py-4">No commission rates configured yet</p>
+          )}
+          <div className="flex items-center gap-4 mt-3">
+            <span className="text-green-400 text-xs">L1 = Direct referral</span>
+            <span className="text-blue-400 text-xs">L2 = 2nd level</span>
+            <span className="text-violet-400 text-xs">L3 = 3rd level</span>
           </div>
-          <p className="text-dark-500 text-xs mt-3">Upgrade to Elite/Supreme for higher L1 rates</p>
         </div>
 
         {/* Quick Actions */}
@@ -223,6 +249,60 @@ export default function PartnerDashboard() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* My Manager */}
+      {myManager && (
+        <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-700/30 rounded-2xl p-5 space-y-4">
+          <p className="text-gray-400 text-xs uppercase tracking-wider">Your Manager</p>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-lg">
+              {myManager.name?.[0]?.toUpperCase()}
+            </div>
+            <div>
+              <p className="text-white font-semibold">{myManager.name}</p>
+              <p className="text-gray-400 text-sm">{myManager.email}</p>
+            </div>
+            <div className="ml-auto w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+              <UserCog className="w-5 h-5 text-emerald-400" />
+            </div>
+          </div>
+
+          {/* Recent Tips */}
+          {myTips.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500 font-medium flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Latest Tips from Manager</p>
+              {myTips.slice(0, 2).map((tip: any) => (
+                <div key={tip._id} className="bg-dark-800/60 rounded-xl p-3 flex gap-3">
+                  <span className="text-base">{tip.category === 'motivation' ? '🔥' : tip.category === 'warning' ? '⚠️' : tip.category === 'feedback' ? '💬' : tip.category === 'update' ? '📢' : '💡'}</span>
+                  <p className="text-gray-300 text-sm flex-1">{tip.message}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Active Goals */}
+          {myGoals.filter((g: any) => g.status === 'active').length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500 font-medium flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Active Goals</p>
+              {myGoals.filter((g: any) => g.status === 'active').slice(0, 2).map((goal: any) => {
+                const pct = Math.min(100, Math.round(((goal.currentValue || 0) / (goal.targetValue || 1)) * 100))
+                return (
+                  <div key={goal._id} className="bg-dark-800/60 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-white text-sm font-medium">{goal.title}</p>
+                      <span className="text-xs text-emerald-400 font-bold">{pct}%</span>
+                    </div>
+                    <div className="w-full bg-dark-700 rounded-full h-1.5">
+                      <div className="bg-emerald-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500">{goal.currentValue || 0} / {goal.targetValue} {goal.unit}{goal.reward ? ` · 🎁 ${goal.reward}` : ''}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

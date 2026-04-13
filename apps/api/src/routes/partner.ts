@@ -3,6 +3,9 @@ import User, { COMMISSION_RATES, PACKAGE_PRICES, PackageTier } from '../models/U
 import Commission from '../models/Commission';
 import Transaction from '../models/Transaction';
 import Lead from '../models/Lead';
+import Package from '../models/Package';
+import Course from '../models/Course';
+import PlatformSettings from '../models/PlatformSettings';
 import { protect } from '../middleware/auth';
 
 const router = Router();
@@ -19,8 +22,20 @@ const affiliateGuard = async (req: any, res: any, next: any) => {
 router.get('/dashboard', protect, affiliateGuard, async (req: any, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select('name avatar affiliateCode wallet totalEarnings totalWithdrawn packageTier commissionRate isAffiliate createdAt upline1 kyc managerName managerPhone')
-      .populate('upline1', 'name email packageTier');
+      .select('name avatar affiliateCode wallet totalEarnings totalWithdrawn packageTier commissionRate isAffiliate createdAt upline1 kyc managerName managerPhone managerId')
+      .populate('upline1', 'name email packageTier')
+      .populate('managerId', 'name email phone');
+
+    // Load the user's own package to get their package _id for matrix lookup
+    const userPkg = user?.packageTier
+      ? await Package.findOne({ $or: [{ tier: user.packageTier }, { name: user.packageTier }], isActive: true })
+          .select('_id commissionRate commissionRateType commissionLevel2 commissionLevel2Type commissionLevel3 commissionLevel3Type')
+      : null;
+
+    // Load ALL active packages with their partnerEarnings matrix to build per-package commission table
+    const allPackages = await Package.find({ isActive: true })
+      .select('_id name tier price partnerEarnings commissionRate commissionRateType commissionLevel2 commissionLevel2Type commissionLevel3 commissionLevel3Type')
+      .sort({ price: 1 });
 
     const [l1, l2, l3] = await Promise.all([
       User.countDocuments({ upline1: req.user._id }),
@@ -50,19 +65,62 @@ router.get('/dashboard', protect, affiliateGuard, async (req: any, res) => {
       { $sort: { '_id.year': 1, '_id.month': 1 } }
     ]);
 
+    // Build per-package commission for this partner's tier using partnerEarnings matrix
+    const packageCommissions = allPackages.map((pkg: any) => {
+      const matrixEntry = pkg.partnerEarnings?.find(
+        (r: any) => userPkg && r.earnerTier?.toString() === userPkg._id?.toString()
+      );
+      const hasMatrix = matrixEntry && (matrixEntry.value > 0);
+      let commission = 0;
+      if (hasMatrix) {
+        commission = matrixEntry.type === 'percentage'
+          ? Math.round((pkg.price || 0) * matrixEntry.value / 100)
+          : Math.round(matrixEntry.value);
+      } else {
+        // fallback to package-level L1 commission
+        commission = pkg.commissionRateType === 'flat'
+          ? Math.round(pkg.commissionRate || 0)
+          : Math.round((pkg.price || 0) * Math.min(pkg.commissionRate || 0, 100) / 100);
+      }
+
+      // L2 & L3 earn amounts
+      const l2Earn = pkg.commissionLevel2Type === 'flat'
+        ? Math.round(pkg.commissionLevel2 || 0)
+        : Math.round((pkg.price || 0) * (pkg.commissionLevel2 || 0) / 100);
+      const l3Earn = pkg.commissionLevel3Type === 'flat'
+        ? Math.round(pkg.commissionLevel3 || 0)
+        : Math.round((pkg.price || 0) * (pkg.commissionLevel3 || 0) / 100);
+
+      return {
+        packageId: pkg._id,
+        name: pkg.name,
+        tier: pkg.tier,
+        price: pkg.price,
+        l1Earn: commission,
+        l2Earn,
+        l3Earn,
+      };
+    });
+
+    const commissionRates = { l1Rate: 0, l1Type: 'flat' };
+
     res.json({
       success: true,
       user: { name: user?.name, avatar: user?.avatar, affiliateCode: user?.affiliateCode, packageTier: user?.packageTier, commissionRate: user?.commissionRate, createdAt: user?.createdAt, kyc: user?.kyc },
+      commissionRates,
+      packageCommissions,
       referralLink: `${process.env.WEB_URL || 'https://peptly.in'}?ref=${user?.affiliateCode}`,
       sponsor: user?.upline1,
-      manager: { name: user?.managerName, phone: user?.managerPhone },
+      manager: (user as any)?.managerId || (user?.managerName ? { name: user.managerName, phone: user.managerPhone } : null),
       stats: {
         wallet: user?.wallet || 0, totalEarnings: user?.totalEarnings || 0,
         totalWithdrawn: user?.totalWithdrawn || 0,
         monthly: monthlyEarnings[0]?.total || 0,
+        monthEarnings: monthlyEarnings[0]?.total || 0,
         weekly: weeklyEarnings[0]?.total || 0,
         rank: rank + 1, totalCommissions, pendingCommissions,
         referrals: { l1, l2, l3, total: l1 + l2 + l3 },
+        l1Count: l1, l2Count: l2, l3Count: l3, totalReferrals: l1 + l2 + l3,
       },
       trend,
     });
@@ -106,7 +164,36 @@ router.get('/earnings', protect, affiliateGuard, async (req: any, res) => {
     const l1Count = await User.countDocuments({ upline1: req.user._id });
     const avgPerReferral = l1Count > 0 ? Math.round((user?.totalEarnings || 0) / l1Count) : 0;
 
-    res.json({ success: true, byLevel, byTier, recent, monthly: monthly.reverse(), bestTier, avgPerReferral });
+    // Convert byLevel array to {l1, l2, l3} object expected by frontend
+    const byLevelObj = {
+      l1: byLevel.find((r: any) => r._id === 1)?.total || 0,
+      l2: byLevel.find((r: any) => r._id === 2)?.total || 0,
+      l3: byLevel.find((r: any) => r._id === 3)?.total || 0,
+    };
+
+    // Convert byTier array to {tier: amount} object expected by frontend
+    const byTierObj: Record<string, number> = {};
+    byTier.forEach((r: any) => { if (r._id) byTierObj[r._id] = r.total || 0; });
+
+    // Format recent commissions for frontend
+    const recentFormatted = recent.map((c: any) => ({
+      _id: c._id,
+      amount: c.commissionAmount,
+      level: c.level,
+      from: c.buyer,
+      createdAt: c.createdAt,
+      status: c.status,
+    }));
+
+    // Format monthly for frontend
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthlyFormatted = monthly.reverse().map((m: any) => ({
+      month: `${monthNames[(m._id.month || 1) - 1]} ${m._id.year}`,
+      total: m.total || 0,
+      count: m.count || 0,
+    }));
+
+    res.json({ success: true, byLevel: byLevelObj, byTier: byTierObj, recent: recentFormatted, monthly: monthlyFormatted, bestTier, avgPerReferral });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -152,27 +239,103 @@ router.get('/referrals', protect, affiliateGuard, async (req: any, res) => {
     const pg = parseInt(page as string) || 1;
     const limit = 20;
 
-    const filter = lv === 1 ? { upline1: req.user._id } : lv === 2 ? { upline2: req.user._id } : { upline3: req.user._id };
+    // L1: referred by this user (referredBy) OR has upline1 set
+    // L2/L3: upline fields set during purchase
+    let filter: any;
+    if (lv === 1) {
+      filter = { $or: [{ referredBy: req.user._id }, { upline1: req.user._id }] };
+    } else if (lv === 2) {
+      filter = { upline2: req.user._id };
+    } else {
+      filter = { upline3: req.user._id };
+    }
+
+    const PAID_TIERS = ['starter', 'pro', 'elite', 'supreme'];
 
     const [refs, total] = await Promise.all([
-      User.find(filter).select('name email phone avatar packageTier isAffiliate totalEarnings wallet createdAt lastLogin').sort('-createdAt').skip((pg - 1) * limit).limit(limit),
+      User.find(filter)
+        .select('name email phone avatar packageTier isAffiliate totalEarnings wallet createdAt lastLogin packagePurchasedAt referredBy upline1')
+        .sort('-createdAt').skip((pg - 1) * limit).limit(limit),
       User.countDocuments(filter),
     ]);
 
-    // For each L1 referral, get their commission contribution to me (single batch query)
+    // Stats — use packagePurchasedAt OR paid course purchase to detect paid members
+    const Payment = (await import('../models/Payment')).default;
+    const allRefs = await User.find(filter).select('packageTier packagePurchasedAt');
+    const allRefIds = allRefs.map((r: any) => r._id);
+    const coursePayers = await Payment.find({ user: { $in: allRefIds }, status: 'paid' }).distinct('user');
+    const coursePayerSet = new Set(coursePayers.map((id: any) => id.toString()));
+    const paidCount = allRefs.filter((r: any) => !!r.packagePurchasedAt || coursePayerSet.has(r._id.toString())).length;
+    const freeCount = allRefs.length - paidCount;
+
+    // Commission earned from L1 referrals
+    const [totalEarningsAgg] = await Commission.aggregate([
+      { $match: { earner: req.user._id, level: lv } },
+      { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+    ]);
+    const totalEarnings = totalEarningsAgg?.total || 0;
+
+    // Per-referral contribution + EMI info + course purchase info
     let refsWithContrib: any[] = refs.map((r: any) => r.toObject());
-    if (lv === 1 && refs.length > 0) {
+    if (refs.length > 0) {
       const buyerIds = refs.map((r: any) => r._id);
-      const contribMap = await Commission.aggregate([
-        { $match: { earner: req.user._id, buyer: { $in: buyerIds } } },
-        { $group: { _id: '$buyer', total: { $sum: '$commissionAmount' } } }
+      const [contribMap, emiMap, coursePaymentMap] = await Promise.all([
+        Commission.aggregate([
+          { $match: { earner: req.user._id, buyer: { $in: buyerIds } } },
+          { $group: { _id: '$buyer', total: { $sum: '$commissionAmount' } } }
+        ]),
+        // Get EMI purchase info for each buyer
+        (async () => {
+          const PackagePurchase = (await import('../models/PackagePurchase')).default;
+          const EmiInstallment = (await import('../models/EmiInstallment')).default;
+          const emiPurchases = await PackagePurchase.find({ user: { $in: buyerIds }, isEmi: true, status: 'paid' }).select('user amount gstAmount');
+          const emiUserIds = emiPurchases.map((p: any) => p._id);
+          const paidCounts = await EmiInstallment.aggregate([
+            { $match: { packagePurchase: { $in: emiUserIds }, status: 'paid' } },
+            { $group: { _id: '$packagePurchase', paidCount: { $sum: 1 } } }
+          ]);
+          const paidByPurchase: Record<string, number> = {};
+          paidCounts.forEach((p: any) => { paidByPurchase[p._id.toString()] = p.paidCount; });
+          const result: Record<string, { isEmi: boolean; emiPaid: number; emiTotal: number; installmentAmount: number }> = {};
+          emiPurchases.forEach((p: any) => {
+            const totalAmt = p.amount + p.gstAmount;
+            result[p.user.toString()] = {
+              isEmi: true,
+              emiPaid: paidByPurchase[p._id.toString()] || 1,
+              emiTotal: 4,
+              installmentAmount: Math.ceil(totalAmt / 4),
+            };
+          });
+          return result;
+        })(),
+        // Get course purchases for each buyer
+        Payment.aggregate([
+          { $match: { user: { $in: buyerIds }, status: 'paid' } },
+          { $group: { _id: '$user', totalAmount: { $sum: '$amount' }, count: { $sum: 1 }, firstPurchase: { $min: '$createdAt' } } }
+        ]),
       ]);
       const contribById: Record<string, number> = {};
       contribMap.forEach((c: any) => { contribById[c._id.toString()] = c.total; });
-      refsWithContrib = refsWithContrib.map((r: any) => ({ ...r, myEarningFromThem: contribById[r._id.toString()] || 0 }));
+      const coursePaymentById: Record<string, { coursePurchasedAt: Date; coursePurchaseCount: number; coursePurchaseTotal: number }> = {};
+      coursePaymentMap.forEach((c: any) => {
+        coursePaymentById[c._id.toString()] = { coursePurchasedAt: c.firstPurchase, coursePurchaseCount: c.count, coursePurchaseTotal: c.totalAmount };
+      });
+      refsWithContrib = refsWithContrib.map((r: any) => ({
+        ...r,
+        contribution: contribById[r._id.toString()] || 0,
+        ...(emiMap[r._id.toString()] || {}),
+        ...(coursePaymentById[r._id.toString()] || {}),
+      }));
     }
 
-    res.json({ success: true, referrals: refsWithContrib, total, pages: Math.ceil(total / limit), page: pg });
+    res.json({
+      success: true,
+      referrals: refsWithContrib,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page: pg,
+      stats: { total: allRefs.length, paid: paidCount, free: freeCount, totalEarnings },
+    });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -270,16 +433,49 @@ router.get('/link', protect, affiliateGuard, async (req: any, res) => {
     const baseUrl = process.env.WEB_URL || 'https://peptly.in';
     const code = user?.affiliateCode || '';
 
-    const links = {
-      home: `${baseUrl}?ref=${code}`,
-      courses: `${baseUrl}/courses?ref=${code}`,
-      packages: `${baseUrl}/packages?ref=${code}`,
-      register: `${baseUrl}/register?ref=${code}`,
-      checkout_pro: `${baseUrl}/packages/pro?ref=${code}`,
-      checkout_elite: `${baseUrl}/packages/elite?ref=${code}`,
-    };
+    const [packages, courses, platformSettings] = await Promise.all([
+      Package.find({ isActive: true }).select('name tier price promoDiscountPercent').sort({ price: 1 }),
+      Course.find({ status: 'published' }).select('title slug thumbnail price').sort({ createdAt: -1 }),
+      PlatformSettings.findOne(),
+    ]);
 
-    res.json({ success: true, affiliateCode: code, links });
+    const packageLinks = packages.map((pkg: any) => ({
+      id: pkg._id,
+      name: pkg.name,
+      tier: pkg.tier,
+      price: pkg.price,
+      promoDiscountPercent: pkg.promoDiscountPercent || 0,
+      checkoutUrl: `${baseUrl}/checkout?package=${pkg._id}&promo=${code}`,
+      referralUrl: `${baseUrl}/packages?ref=${code}`,
+    }));
+
+    const courseLinks = courses.map((course: any) => ({
+      id: course._id,
+      title: course.title,
+      slug: course.slug,
+      thumbnail: course.thumbnail,
+      price: course.price,
+      referralUrl: `${baseUrl}/courses/${course.slug}?ref=${code}`,
+    }));
+
+    res.json({
+      success: true,
+      affiliateCode: code,
+      packageLinks,
+      courseLinks,
+      webinar: {
+        link: platformSettings?.webinarLink || '',
+        title: platformSettings?.webinarTitle || '',
+        date: platformSettings?.webinarDate || '',
+      },
+      presentationVideoLink: platformSettings?.presentationVideoLink || '',
+      generalLinks: {
+        home: `${baseUrl}?ref=${code}`,
+        courses: `${baseUrl}/courses?ref=${code}`,
+        packages: `${baseUrl}/packages?ref=${code}`,
+        register: `${baseUrl}/register?ref=${code}`,
+      },
+    });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -302,6 +498,38 @@ router.get('/qualification', protect, affiliateGuard, async (req: any, res) => {
     ];
 
     res.json({ success: true, milestones, summary: { l1Count, l1Paid, totalEarnings: user?.totalEarnings || 0, tier: user?.packageTier } });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── GET /api/partner/emi-commissions ─────────────────────────────────────────
+router.get('/emi-commissions', protect, affiliateGuard, async (req: any, res) => {
+  try {
+    const EmiInstallment = (await import('../models/EmiInstallment')).default;
+
+    const installments = await EmiInstallment.find({ partnerUser: req.user._id })
+      .populate('user', 'name email phone packageTier')
+      .populate('packagePurchase', 'packageTier amount totalAmount')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Summary stats
+    const totalPendingComm = installments
+      .filter((i: any) => !i.partnerCommissionPaid && i.partnerCommissionAmount > 0 && i.status !== 'paid')
+      .reduce((sum: number, i: any) => sum + (i.partnerCommissionAmount || 0), 0);
+
+    const totalEarnedComm = installments
+      .filter((i: any) => i.partnerCommissionPaid)
+      .reduce((sum: number, i: any) => sum + (i.partnerCommissionAmount || 0), 0);
+
+    res.json({
+      success: true,
+      installments,
+      stats: {
+        totalPendingCommission: totalPendingComm,
+        totalEarnedCommission: totalEarnedComm,
+        totalInstallments: installments.length,
+      },
+    });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 

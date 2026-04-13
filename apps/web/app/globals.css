@@ -35,10 +35,10 @@ body{
     box-shadow: 0 0 30px rgba(124,58,237,0.5), 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 0 rgba(80,30,150,1);
   }
   .btn-primary:hover {
-    transform: perspective(400px) translateY(-4px) rotateX(8deg) scale(1.02);
+    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 0 50px rgba(124,58,237,0.7), 0 16px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2), 0 6px 0 rgba(60,20,120,1);
   }
-  .btn-primary:active { transform: perspective(400px) translateY(0px) rotateX(0deg) scale(0.98); }
+  .btn-primary:active { transform: translateY(0px) scale(0.98); }
 
   .btn-outline {
     @apply relative inline-flex items-center justify-center gap-2 font-semibold px-8 py-3.5 rounded-2xl transition-all duration-300 text-white;
@@ -66,12 +66,11 @@ body{
     @apply relative rounded-3xl p-6 transition-all duration-300;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.08);
-    transform-style: preserve-3d;
   }
   .card:hover {
     border-color: rgba(124,58,237,0.4);
     background: rgba(124,58,237,0.05);
-    transform: translateY(-6px) perspective(800px) rotateX(2deg);
+    transform: translateY(-3px);
     box-shadow: 0 24px 60px rgba(124,58,237,0.18), 0 4px 16px rgba(0,0,0,0.4);
   }
 

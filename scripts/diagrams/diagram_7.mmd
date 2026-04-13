@@ -1,0 +1,7 @@
+flowchart LR
+    USER[Student] -->|Ask Question| NOVA["POST /api/nova"]
+    NOVA --> NCONFIG["NovaConfig\nSystem Prompt + Context"]
+    NCONFIG --> OPENAI["OpenAI GPT"]
+    OPENAI --> RESP["AI Response"]
+    RESP --> CHAT["WhatsApp Meta API\nor Web Chat"]
+    CHAT --> USER

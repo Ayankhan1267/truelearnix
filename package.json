@@ -2,7 +2,10 @@
   "name": "trulearnix",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\"",
     "dev:api": "npm run dev --workspace=apps/api",
@@ -13,5 +16,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@phonepe-pg/pg-sdk-node": "^2.0.5"
   }
 }

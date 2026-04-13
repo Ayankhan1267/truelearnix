@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import AdminLayout from '@/components/AdminLayout'
 import { adminAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { Plus, X, FileText, Video, File, Link2, Image, Download, Search, Trash2, Globe, Lock } from 'lucide-react'
+import { Plus, X, FileText, Video, File, Link2, Image, Download, Search, Trash2, Globe, Lock, BookOpen } from 'lucide-react'
 
 const TYPE_ICONS: Record<string, any> = {
   pdf: FileText, video: Video, doc: File, link: Link2, image: Image
@@ -16,22 +16,28 @@ const TYPE_COLORS: Record<string, string> = {
   image: 'text-purple-400 bg-purple-500/20',
 }
 
-const empty = { title: '', description: '', type: 'pdf', url: '', isPublic: false, tags: '' }
+const empty = { title: '', description: '', type: 'pdf', url: '', courseId: '', isPublic: false, tags: '' }
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState<any[]>([])
+  const [courses, setCourses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [courseFilter, setCourseFilter] = useState('')
   const [form, setForm] = useState<any>(empty)
 
-  useEffect(() => { fetch() }, [typeFilter])
+  useEffect(() => {
+    fetchMaterials()
+    adminAPI.allCourses({ limit: 200 }).then(r => setCourses(r.data.courses || [])).catch(() => {})
+  }, [typeFilter, courseFilter])
 
-  const fetch = async () => {
+  const fetchMaterials = async () => {
     try {
       const params: any = {}
       if (typeFilter) params.type = typeFilter
+      if (courseFilter) params.courseId = courseFilter
       const res = await adminAPI.materials(params)
       setMaterials(res.data.data || [])
     } catch { toast.error('Failed to load materials') }
@@ -41,12 +47,16 @@ export default function MaterialsPage() {
   const save = async () => {
     if (!form.title || !form.url) return toast.error('Title and URL required')
     try {
-      const payload = { ...form, tags: form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) }
+      const payload = {
+        ...form,
+        tags: form.tags.split(',').map((t: string) => t.trim()).filter(Boolean),
+        courseId: form.courseId || undefined,
+      }
       await adminAPI.createMaterial(payload)
       toast.success('Material added!')
       setShowForm(false)
       setForm(empty)
-      fetch()
+      fetchMaterials()
     } catch { toast.error('Failed') }
   }
 
@@ -86,55 +96,76 @@ export default function MaterialsPage() {
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
             className="bg-slate-800 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none">
             <option value="">All Types</option>
-            {['pdf', 'video', 'doc', 'link', 'image'].map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+            {['pdf', 'video', 'doc', 'link', 'image'].map(t => <option key={t} value={t} className="capitalize">{t.toUpperCase()}</option>)}
+          </select>
+          <select value={courseFilter} onChange={e => setCourseFilter(e.target.value)}
+            className="bg-slate-800 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none min-w-40">
+            <option value="">All Courses</option>
+            {courses.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
           </select>
         </div>
 
         {showForm && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg border border-white/10 space-y-4">
+            <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-lg border border-white/10 space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <h2 className="text-white font-bold">Add Study Material</h2>
-                <button onClick={() => setShowForm(false)}><X className="w-4 h-4 text-gray-400" /></button>
+                <button onClick={() => { setShowForm(false); setForm(empty) }}><X className="w-4 h-4 text-gray-400" /></button>
               </div>
-              {[
-                { label: 'Title *', key: 'title', type: 'text', placeholder: 'e.g. Python Basics PDF' },
-                { label: 'URL *', key: 'url', type: 'url', placeholder: 'https://...' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="text-xs text-gray-400 mb-1 block">{f.label}</label>
-                  <input type={f.type} value={form[f.key]} onChange={e => setForm((p: any) => ({ ...p, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder} className="w-full bg-slate-700 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none focus:border-violet-500" />
-                </div>
-              ))}
+
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Title *</label>
+                <input type="text" value={form.title} onChange={e => setForm((p: any) => ({ ...p, title: e.target.value }))}
+                  placeholder="e.g. Python Basics Notes" className="w-full bg-slate-700 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none focus:border-violet-500" />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">URL / Link *</label>
+                <input type="url" value={form.url} onChange={e => setForm((p: any) => ({ ...p, url: e.target.value }))}
+                  placeholder="https://drive.google.com/..." className="w-full bg-slate-700 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none focus:border-violet-500" />
+              </div>
+
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Description</label>
                 <textarea value={form.description} onChange={e => setForm((p: any) => ({ ...p, description: e.target.value }))}
                   placeholder="Brief description" rows={2} className="w-full bg-slate-700 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none resize-none" />
               </div>
+
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Link to Course</label>
+                <select value={form.courseId} onChange={e => setForm((p: any) => ({ ...p, courseId: e.target.value }))}
+                  className="w-full bg-slate-700 text-white rounded-xl px-3 py-2.5 text-sm border border-white/10 outline-none">
+                  <option value="">— General / No specific course —</option>
+                  {courses.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Enrolled students of the selected course will see this material.</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-400 mb-1 block">Type</label>
                   <select value={form.type} onChange={e => setForm((p: any) => ({ ...p, type: e.target.value }))}
                     className="w-full bg-slate-700 text-white rounded-xl px-3 py-2.5 text-sm border border-white/10 outline-none">
-                    {['pdf', 'video', 'doc', 'link', 'image'].map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+                    {['pdf', 'video', 'doc', 'link', 'image'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
                   </select>
                 </div>
-                <div className="flex items-end">
+                <div className="flex items-end pb-1">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.isPublic} onChange={e => setForm((p: any) => ({ ...p, isPublic: e.target.checked }))}
                       className="w-4 h-4 accent-violet-500" />
-                    <span className="text-sm text-gray-300">Public access</span>
+                    <span className="text-sm text-gray-300">Public (everyone)</span>
                   </label>
                 </div>
               </div>
+
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Tags (comma-separated)</label>
                 <input value={form.tags} onChange={e => setForm((p: any) => ({ ...p, tags: e.target.value }))}
                   placeholder="python, beginner, notes" className="w-full bg-slate-700 text-white rounded-xl px-4 py-2.5 text-sm border border-white/10 outline-none" />
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-400 text-sm">Cancel</button>
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => { setShowForm(false); setForm(empty) }} className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-400 text-sm">Cancel</button>
                 <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-700">Add Material</button>
               </div>
             </div>
@@ -159,13 +190,18 @@ export default function MaterialsPage() {
                     </div>
                   </div>
                   <h3 className="text-white font-semibold text-sm mb-1 line-clamp-2">{m.title}</h3>
-                  {m.description && <p className="text-gray-500 text-xs mb-3 line-clamp-2">{m.description}</p>}
+                  {m.description && <p className="text-gray-500 text-xs mb-2 line-clamp-2">{m.description}</p>}
+                  {m.courseId?.title && (
+                    <div className="flex items-center gap-1 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-lg mb-2 w-fit">
+                      <BookOpen className="w-3 h-3" /> {m.courseId.title}
+                    </div>
+                  )}
                   {m.tags?.length > 0 && (
                     <div className="flex gap-1 flex-wrap mb-3">
                       {m.tags.map((tag: string) => <span key={tag} className="text-xs bg-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded">{tag}</span>)}
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-gray-500 flex items-center gap-1"><Download className="w-3 h-3" />{m.downloadCount} downloads</span>
                     <a href={m.url} target="_blank" rel="noopener noreferrer"
                       className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1">

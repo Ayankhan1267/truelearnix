@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { partnerAPI } from '@/lib/api'
-import { UserCheck, Search, ChevronLeft, ChevronRight, Package, Calendar, Coins, Users } from 'lucide-react'
+import { UserCheck, Search, ChevronLeft, ChevronRight, Package, Calendar, Coins, Users, CreditCard, BookOpen } from 'lucide-react'
 
 const tierColors: Record<string, string> = {
   free: 'from-gray-500 to-gray-600',
@@ -91,20 +91,44 @@ export default function ReferralsPage() {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  {r.contribution > 0 ? (
-                    <>
-                      <p className="text-green-400 text-sm font-bold">+₹{r.contribution.toLocaleString()}</p>
-                      <p className="text-dark-500 text-xs">earned from</p>
-                    </>
+                  {(r.packagePurchasedAt || r.coursePurchasedAt) ? (
+                    r.contribution > 0 ? (
+                      <>
+                        <p className="text-green-400 text-sm font-bold">+₹{r.contribution.toLocaleString()}</p>
+                        <p className="text-dark-500 text-xs">{r.isEmi ? `${r.emiPaid}/${r.emiTotal} installments` : 'earned'}</p>
+                      </>
+                    ) : (
+                      <span className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                        {r.coursePurchasedAt && !r.packagePurchasedAt ? 'Course Purchased' : 'Purchased'}
+                      </span>
+                    )
                   ) : (
                     <span className="text-dark-500 text-xs bg-dark-700 px-2 py-1 rounded-lg">No purchase</span>
                   )}
                 </div>
               </div>
-              {r.packagePurchasedAt && (
-                <div className="mt-3 pl-14 flex items-center gap-2 text-xs text-dark-400">
-                  <Package className="w-3 h-3 text-amber-400" />
-                  <span>Purchased <span className="text-amber-400 capitalize">{r.packageTier}</span> on {new Date(r.packagePurchasedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              {(r.packagePurchasedAt || r.coursePurchasedAt) && (
+                <div className="mt-3 pl-14 flex items-center gap-3 text-xs text-dark-400 flex-wrap">
+                  {r.packagePurchasedAt && (
+                    <span className="flex items-center gap-1">
+                      <Package className="w-3 h-3 text-amber-400" />
+                      Purchased <span className="text-amber-400 capitalize ml-1">{r.packageTier}</span>
+                      <span className="ml-1">on {new Date(r.packagePurchasedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    </span>
+                  )}
+                  {r.coursePurchasedAt && (
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="w-3 h-3 text-blue-400" />
+                      <span className="text-blue-400">{r.coursePurchaseCount} course{r.coursePurchaseCount > 1 ? 's' : ''}</span>
+                      <span>· ₹{(r.coursePurchaseTotal || 0).toLocaleString()} on {new Date(r.coursePurchasedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    </span>
+                  )}
+                  {r.isEmi && (
+                    <span className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
+                      <CreditCard className="w-3 h-3" />
+                      EMI {r.emiPaid}/{r.emiTotal} paid · ₹{(r.installmentAmount || 0).toLocaleString()}/installment
+                    </span>
+                  )}
                 </div>
               )}
             </div>

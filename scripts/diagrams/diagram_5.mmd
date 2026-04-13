@@ -1,0 +1,13 @@
+flowchart TD
+    REG[Register / Login] --> OTP[OTP Verify]
+    OTP --> JWT[JWT Issued\nAccess + Refresh Token]
+    JWT --> ROLE{User Role?}
+
+    ROLE -->|student| LP[Learner Panel\n/student/*]
+    ROLE -->|mentor| MP[Mentor Panel\n/mentor/*]
+    ROLE -->|admin/superadmin| AP[Admin Panel\nadmin.peptly.in]
+    ROLE -->|partner| PP[Partner Panel\n/partner/*]
+
+    LP --> PKG{Package Tier?}
+    PKG -->|free| FREE[Limited Access\nUpgrade Prompt]
+    PKG -->|starter/pro/elite/supreme| PAID[Full Access\nFree Course Enroll]

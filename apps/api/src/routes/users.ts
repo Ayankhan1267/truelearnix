@@ -10,7 +10,10 @@ const router = Router();
 router.get('/me', protect, async (req: any, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password -refreshToken');
-    res.json({ success: true, user });
+    const enrollmentCount = await Enrollment.countDocuments({ student: req.user._id });
+    const PAID_TIERS = ['starter', 'pro', 'elite', 'supreme'];
+    const hasAccess = PAID_TIERS.includes(user?.packageTier || '') || !!user?.isAffiliate || enrollmentCount > 0;
+    res.json({ success: true, user, enrollmentCount, hasAccess });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 

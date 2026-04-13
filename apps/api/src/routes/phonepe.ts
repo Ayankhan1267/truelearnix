@@ -11,6 +11,9 @@ import Coupon from '../models/Coupon';
 import Transaction from '../models/Transaction';
 import Commission from '../models/Commission';
 import EmiInstallment from '../models/EmiInstallment';
+import { sendPurchaseWelcomeEmail } from '../services/emailService';
+import { sendWhatsAppText } from '../services/whatsappMetaService';
+import redisClient from '../config/redis';
 
 const router = Router();
 
@@ -23,68 +26,361 @@ function getClient() {
   return StandardCheckoutClient.getInstance(clientId, clientSecret, clientVersion, env);
 }
 
-async function creditMLM(purchasedUserId: string, saleAmount: number, purchaseId: string, tier: string) {
-  const buyer = await User.findById(purchasedUserId).populate('referredBy');
-  if (!buyer) return;
-  const level1Id = buyer.upline1 || (buyer.referredBy as any)?._id || buyer.referredBy;
-  if (!level1Id) return;
-  const level1 = await User.findById(level1Id);
-  if (!level1 || !level1.isAffiliate) return;
-  const levels = [{ user: level1, rate: level1.commissionRate || 10, level: 1 }];
-  if (level1.upline1) {
-    const level2 = await User.findById(level1.upline1);
-    if (level2?.isAffiliate) levels.push({ user: level2, rate: 5, level: 2 });
-    if (level2?.upline1) {
-      const level3 = await User.findById(level2.upline1);
-      if (level3?.isAffiliate) levels.push({ user: level3, rate: 2, level: 3 });
+function calcCommAmt(saleAmount: number, rate: number, rateType: string): number {
+  if (rateType === 'flat') return Math.round(rate);
+  return Math.round(saleAmount * rate / 100);
+}
+
+async function resolveFullCommission(partnerUserId: string, purchaseAmount: number, packageId?: string): Promise<number> {
+  const partner = await User.findById(partnerUserId);
+  if (!partner?.isAffiliate) return 0;
+  const soldPkg = packageId ? await Package.findById(packageId).select('commissionRate commissionRateType partnerEarnings') : null;
+  const earnerPkg = partner.packageTier
+    ? await Package.findOne({ $or: [{ tier: partner.packageTier }, { name: partner.packageTier }], isActive: true }).select('_id')
+    : null;
+  const matrixEntry = soldPkg?.partnerEarnings?.find(
+    (r: any) => earnerPkg && r.earnerTier?.toString() === earnerPkg._id?.toString()
+  );
+  return matrixEntry?.value > 0
+    ? Math.round(matrixEntry.value)
+    : calcCommAmt(purchaseAmount, soldPkg?.commissionRate || 0, soldPkg?.commissionRateType || 'percentage');
+}
+
+async function creditMLM(purchasedUserId: string, saleAmount: number, purchaseId: string, tier: string, packageId?: string) {
+  try {
+    const buyer = await User.findById(purchasedUserId).populate('referredBy');
+    if (!buyer) return;
+    const level1Id = buyer.upline1 || (buyer.referredBy as any)?._id || buyer.referredBy;
+    if (!level1Id) return;
+    const level1 = await User.findById(level1Id);
+    if (!level1 || !level1.isAffiliate) return;
+
+    // Idempotency: skip if already credited for this purchase
+    const alreadyCredited = await Commission.findOne({ buyer: purchasedUserId, packagePurchaseId: purchaseId, level: 1 });
+    if (alreadyCredited) return;
+
+    const soldPkg = packageId
+      ? await Package.findById(packageId).select('commissionRate commissionRateType partnerEarnings')
+      : null;
+    const earnerPkg = level1.packageTier
+      ? await Package.findOne({ $or: [{ tier: level1.packageTier }, { name: level1.packageTier }], isActive: true }).select('_id')
+      : null;
+    const matrixEntry = soldPkg?.partnerEarnings?.find(
+      (r: any) => earnerPkg && r.earnerTier?.toString() === earnerPkg._id?.toString()
+    );
+    const commAmt = matrixEntry?.value > 0
+      ? Math.round(matrixEntry.value)
+      : calcCommAmt(saleAmount, soldPkg?.commissionRate || 0, soldPkg?.commissionRateType || 'percentage');
+
+    if (commAmt > 0) {
+      await Commission.create({
+        earner: level1._id, earnerTier: level1.packageTier,
+        earnerCommissionRate: commAmt, buyer: purchasedUserId,
+        buyerPackageTier: tier, level: 1, levelRate: commAmt,
+        saleAmount, commissionAmount: commAmt, packagePurchaseId: purchaseId, status: 'approved',
+      });
+      const updatedLevel1 = await User.findByIdAndUpdate(level1._id, { $inc: { wallet: commAmt, totalEarnings: commAmt } }, { new: true });
+      await Transaction.create({
+        user: level1._id, type: 'credit', category: 'affiliate_commission',
+        amount: commAmt, description: `Commission — ${tier || 'package'} purchased`,
+        referenceId: purchaseId, status: 'completed',
+        balanceAfter: updatedLevel1?.wallet || 0,
+      });
+      await User.findByIdAndUpdate(level1._id, {
+        $push: { notifications: { type: 'commission', message: `🎉 ₹${commAmt} commission earned from a ${tier || 'package'} purchase!`, read: false, createdAt: new Date() } }
+      });
     }
-  }
-  for (const { user: earner, rate, level } of levels) {
-    const commAmt = Math.round(saleAmount * rate / 100);
-    await Commission.create({
-      earner: earner._id, earnerTier: earner.packageTier,
-      earnerCommissionRate: earner.commissionRate, buyer: purchasedUserId,
-      buyerPackageTier: tier, level, levelRate: rate,
-      saleAmount, commissionAmount: commAmt, packagePurchaseId: purchaseId, status: 'approved',
-    });
-    await User.findByIdAndUpdate(earner._id, { $inc: { wallet: commAmt, totalEarnings: commAmt } });
-    await Transaction.create({
-      user: earner._id, type: 'credit', category: 'affiliate_commission',
-      amount: commAmt, description: `L${level} commission — ${tier} package purchased`,
-      referenceId: purchaseId, status: 'completed',
-    });
-    earner.notifications.push({
-      type: 'commission',
-      message: `🎉 ₹${commAmt} earned! L${level} commission from a ${tier} purchase.`,
-      read: false, createdAt: new Date(),
-    });
-    await earner.save();
-  }
-  if (!buyer.upline1) {
-    buyer.upline1 = level1Id;
-    if (levels[1]) buyer.upline2 = levels[1].user._id;
-    if (levels[2]) buyer.upline3 = levels[2].user._id;
-    await buyer.save();
+
+    // Manager commission
+    try {
+      const mgCommRate = soldPkg?.managerCommission;
+      if (mgCommRate && mgCommRate.value > 0 && (level1 as any).managerId) {
+        const manager = await User.findById((level1 as any).managerId).select('_id');
+        if (manager) {
+          const alreadyCredited = await Commission.findOne({ buyer: purchasedUserId, packagePurchaseId: purchaseId, level: 99 });
+          if (!alreadyCredited) {
+            const mgAmt = mgCommRate.type === 'flat' ? mgCommRate.value : Math.round(saleAmount * mgCommRate.value / 100);
+            if (mgAmt > 0) {
+              await Commission.create({
+                earner: manager._id, earnerTier: 'manager', earnerCommissionRate: mgCommRate.value,
+                buyer: purchasedUserId, buyerPackageTier: tier,
+                level: 99, levelRate: mgCommRate.value,
+                saleAmount, commissionAmount: mgAmt, packagePurchaseId: purchaseId, status: 'approved',
+              });
+              await User.findByIdAndUpdate(manager._id, { $inc: { wallet: mgAmt, totalEarnings: mgAmt } });
+              await Transaction.create({
+                user: manager._id, type: 'credit', category: 'affiliate_commission',
+                amount: mgAmt, description: `Manager commission — ${tier} package sold by partner`,
+                referenceId: purchaseId, status: 'completed',
+              });
+              await User.findByIdAndUpdate(manager._id, {
+                $push: { notifications: { type: 'commission', message: `💼 ₹${mgAmt} manager commission from ${tier} package sale!`, read: false, createdAt: new Date() } }
+              });
+            }
+          }
+        }
+      }
+    } catch (mgErr: any) {
+      console.error('[Manager Commission Error]', mgErr.message);
+    }
+
+    // Set upline (non-critical)
+    if (!buyer.upline1) {
+      await User.findByIdAndUpdate(purchasedUserId, { upline1: level1Id });
+    }
+  } catch (e: any) {
+    console.error('[PhonePe creditMLM Error]', e.message);
   }
 }
+
+// ── POST /api/phonepe/guest-course ── (no auth, for referral link buyers) ────
+router.post('/guest-course', async (req: any, res) => {
+  try {
+    const { name, email, phone, courseId, promoCode } = req.body;
+    if (!name || !email || !phone || !courseId) {
+      return res.status(400).json({ success: false, message: 'Name, email, phone and courseId are required' });
+    }
+
+    const { generateAccessToken, generateRefreshToken } = await import('../utils/generateToken');
+    const bcrypt = await import('bcryptjs');
+    const Course = (await import('../models/Course')).default;
+
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    const basePrice = (course as any).discountPrice || (course as any).price || 0;
+    const itemName = (course as any).title;
+
+    // Find or create user
+    let user = await User.findOne({ email: email.toLowerCase().trim() });
+    let isNewUser = false;
+    let plainPassword = '';
+
+    if (!user) {
+      isNewUser = true;
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      plainPassword = 'Tl@' + Array.from({ length: 7 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const hashed = await bcrypt.default.hash(plainPassword, 10);
+
+      // Check if promoCode is a valid affiliate code and set referredBy
+      let referredBy = null;
+      if (promoCode) {
+        const referrer = await User.findOne({ affiliateCode: promoCode.toUpperCase().trim() });
+        if (referrer) referredBy = referrer._id;
+      }
+
+      user = await User.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
+        password: hashed,
+        role: 'student',
+        isVerified: true,
+        referredBy,
+      });
+    }
+
+    // Check if already enrolled
+    const alreadyEnrolled = await Enrollment.findOne({ student: user._id, course: courseId });
+    if (alreadyEnrolled) {
+      return res.status(400).json({ success: false, message: 'This email is already enrolled in this course. Please login to access it.' });
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Store plainPassword in Redis for welcome msg after payment
+    if (isNewUser && plainPassword) {
+      await redisClient.set(`reg-pw:${user._id}`, plainPassword, { EX: 86400 });
+    }
+
+    // PhonePe order
+    const merchantOrderId = `TL_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    const webUrl = process.env.WEB_URL || 'https://peptly.in';
+    const redirectUrl = `${webUrl}/checkout/phonepe-status?orderId=${merchantOrderId}&type=course&courseId=${courseId}&isEmi=false`;
+
+    const client = getClient();
+    const request = StandardCheckoutPayRequest.builder()
+      .merchantOrderId(merchantOrderId)
+      .amount(Math.round(basePrice * 100))
+      .redirectUrl(redirectUrl)
+      .message(itemName)
+      .build();
+
+    const ppResponse = await client.pay(request);
+
+    // Save Payment record
+    const payment = await Payment.create({
+      user: user._id, course: courseId, amount: basePrice,
+      razorpayOrderId: merchantOrderId, status: 'created', affiliateCode: promoCode || '',
+    });
+    if (promoCode) {
+      const referrer = await User.findOne({ affiliateCode: promoCode.toUpperCase().trim() });
+      if (referrer) { (payment as any).affiliateUser = referrer._id; await payment.save(); }
+    }
+
+    return res.json({
+      success: true,
+      redirectUrl: ppResponse.redirectUrl,
+      merchantOrderId,
+      accessToken,
+      refreshToken,
+      user: { _id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, packageTier: user.packageTier, wallet: user.wallet, isAffiliate: user.isAffiliate },
+      isNewUser,
+    });
+  } catch (e: any) {
+    console.error('[PhonePe guest-course]', e?.message || e);
+    res.status(500).json({ success: false, message: e?.message || 'Payment initiation failed' });
+  }
+});
+
+// ── POST /api/phonepe/guest-package ── (no auth, skips OTP) ──────────────────
+router.post('/guest-package', async (req: any, res) => {
+  try {
+    const { name, email, phone, tier, packageId: pkgIdParam, promoCode, couponCode, isEmi } = req.body;
+    if (!name || !email || !phone || (!tier && !pkgIdParam)) {
+      return res.status(400).json({ success: false, message: 'Name, email, phone and package are required' });
+    }
+
+    const { generateAccessToken, generateRefreshToken } = await import('../utils/generateToken');
+    const bcrypt = await import('bcryptjs');
+
+    const pkg = pkgIdParam
+      ? await Package.findById(pkgIdParam)
+      : await Package.findOne({ tier, isActive: true });
+    if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
+
+    const pkgTier = pkg.tier || pkg.name;
+    const itemName = `${pkg.name} Package`;
+
+    // Find or create user
+    let user = await User.findOne({ email: email.toLowerCase().trim() });
+    let isNewUser = false;
+    let plainPassword = '';
+
+    if (!user) {
+      isNewUser = true;
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      plainPassword = 'Tl@' + Array.from({ length: 7 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const hashed = await bcrypt.default.hash(plainPassword, 10);
+      let referredBy = null;
+      if (promoCode) {
+        const referrer = await User.findOne({ affiliateCode: promoCode.toUpperCase().trim() });
+        if (referrer) referredBy = referrer._id;
+      }
+      user = await User.create({
+        name: name.trim(), email: email.toLowerCase().trim(), phone: phone.trim(),
+        password: hashed, role: 'student', isVerified: true, referredBy,
+      });
+    } else {
+      // Existing user — check tier upgrade eligibility
+      const TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, elite: 3, supreme: 4 };
+      if ((TIER_ORDER[user.packageTier] ?? 0) > (TIER_ORDER[pkgTier] ?? 0)) {
+        return res.status(400).json({ success: false, message: 'You already have a higher or equal tier. Please login to manage your account.' });
+      }
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    if (isNewUser && plainPassword) {
+      await redisClient.set(`reg-pw:${user._id}`, plainPassword, { EX: 86400 });
+    }
+
+    // Price calculation
+    let basePrice = pkg.price;
+    let promoDiscount = 0;
+    let couponDiscount = 0;
+    let affiliateUser: any = null;
+
+    if (promoCode) {
+      const referrer = await User.findOne({ affiliateCode: promoCode.toUpperCase().trim() });
+      if (referrer && referrer._id.toString() !== user._id.toString()) {
+        affiliateUser = referrer;
+        const pkgDiscountPct = pkg.promoDiscountPercent || 0;
+        if (pkgDiscountPct > 0) promoDiscount = Math.round(basePrice * pkgDiscountPct / 100);
+      }
+    }
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
+      if (coupon && coupon.usedCount < coupon.maxUses && new Date() < coupon.expiresAt) {
+        couponDiscount = coupon.type === 'percent'
+          ? Math.round(basePrice * coupon.value / 100)
+          : Math.min(coupon.value, basePrice);
+      }
+    }
+
+    const afterDiscount = Math.max(0, basePrice - promoDiscount - couponDiscount);
+    const gst = Math.round(afterDiscount * 0.18);
+    const totalAmount = afterDiscount + gst;
+    const EMI_MONTHS = 4;
+    const isEmiOrder = !!isEmi;
+    const payNow = isEmiOrder ? Math.ceil(totalAmount / EMI_MONTHS) : totalAmount;
+
+    const merchantOrderId = `TL_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    const webUrl = process.env.WEB_URL || 'https://peptly.in';
+    const redirectUrl = `${webUrl}/checkout/phonepe-status?orderId=${merchantOrderId}&type=package&tier=${pkgTier}&isEmi=${isEmiOrder}`;
+
+    const client = getClient();
+    const request = StandardCheckoutPayRequest.builder()
+      .merchantOrderId(merchantOrderId)
+      .amount(Math.round(payNow * 100))
+      .redirectUrl(redirectUrl)
+      .message(isEmiOrder ? `${itemName} — Installment 1 of ${EMI_MONTHS}` : itemName)
+      .build();
+
+    const ppResponse = await client.pay(request);
+
+    await PackagePurchase.create({
+      user: user._id, package: pkg._id, packageTier: pkgTier,
+      amount: afterDiscount, gstAmount: gst, totalAmount,
+      razorpayOrderId: merchantOrderId, status: 'created',
+      affiliateCode: promoCode || '', affiliatePartnerCode: promoCode || '',
+      isEmi: isEmiOrder, emiMonth: isEmiOrder ? 1 : undefined, emiTotal: isEmiOrder ? EMI_MONTHS : undefined,
+      ...(affiliateUser ? { affiliateUser: affiliateUser._id } : {}),
+    });
+
+    return res.json({
+      success: true, redirectUrl: ppResponse.redirectUrl, merchantOrderId,
+      accessToken, refreshToken,
+      user: { _id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role, packageTier: user.packageTier, wallet: user.wallet, isAffiliate: user.isAffiliate },
+      isNewUser,
+    });
+  } catch (e: any) {
+    console.error('[PhonePe guest-package]', e?.message || e);
+    res.status(500).json({ success: false, message: e?.message || 'Payment initiation failed' });
+  }
+});
 
 // ── POST /api/phonepe/create-order ───────────────────────────────────────────
 router.post('/create-order', protect, async (req: any, res) => {
   try {
     const { type, tier, courseId, couponCode, promoCode, isEmi } = req.body;
 
+    const pkgIdParam = req.body.packageId; // accept packageId directly
     let basePrice = 0, gst = 0, discount = 0, itemName = '', packageId: any = null;
 
     if (type === 'package') {
-      const pkg = await Package.findOne({ tier, isActive: true });
+      const pkg = pkgIdParam
+        ? await Package.findById(pkgIdParam)
+        : await Package.findOne({ tier, isActive: true });
       if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
+      const pkgTierResolved = pkg.tier || pkg.name;
       const TIER_ORDER: Record<string, number> = { free: 0, starter: 1, pro: 2, elite: 3, supreme: 4 };
-      if (TIER_ORDER[req.user.packageTier] > TIER_ORDER[tier]) {
+      if ((TIER_ORDER[req.user.packageTier] ?? 0) > (TIER_ORDER[pkgTierResolved] ?? 0)) {
         return res.status(400).json({ success: false, message: 'You already have a higher tier' });
       }
       basePrice = pkg.price;
       packageId = pkg._id;
       itemName = `${pkg.name} Package`;
+      (req as any)._resolvedTier = pkgTierResolved;
+      (req as any)._resolvedPkg = pkg;
     } else if (type === 'course') {
       const Course = (await import('../models/Course')).default;
       const course = await Course.findById(courseId);
@@ -97,6 +393,19 @@ router.post('/create-order', protect, async (req: any, res) => {
       return res.status(400).json({ success: false, message: 'Invalid type' });
     }
 
+    // Apply promo code discount (based on package's promoDiscountPercent)
+    let promoDiscount = 0;
+    if (promoCode) {
+      const referrer = await User.findOne({ affiliateCode: promoCode.toUpperCase().trim() });
+      if (referrer && referrer._id.toString() !== req.user._id.toString()) {
+        if (type === 'package' && packageId) {
+          const purchasePkg = await Package.findById(packageId).select('promoDiscountPercent');
+          const pkgDiscountPct = purchasePkg?.promoDiscountPercent || 0;
+          if (pkgDiscountPct > 0) promoDiscount = Math.round(basePrice * pkgDiscountPct / 100);
+        }
+      }
+    }
+
     // Apply coupon
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
@@ -107,18 +416,20 @@ router.post('/create-order', protect, async (req: any, res) => {
       }
     }
 
-    const afterDiscount = basePrice - discount;
+    const totalDiscount = promoDiscount + discount;
+    const afterDiscount = Math.max(0, basePrice - totalDiscount);
     gst = type === 'package' ? Math.round(afterDiscount * 0.18) : 0;
     const totalAmount = afterDiscount + gst;
 
     // EMI: only first installment amount
-    const EMI_MONTHS = 3;
+    const EMI_MONTHS = 4;
     const isEmiOrder = type === 'package' && !!isEmi;
     const payNow = isEmiOrder ? Math.ceil(totalAmount / EMI_MONTHS) : totalAmount;
 
     const merchantOrderId = `TL_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
     const webUrl = process.env.WEB_URL || 'https://peptly.in';
-    const redirectUrl = `${webUrl}/checkout/phonepe-status?orderId=${merchantOrderId}&type=${type}${tier ? `&tier=${tier}` : ''}${courseId ? `&courseId=${courseId}` : ''}&isEmi=${isEmiOrder}`;
+    const resolvedTier = (req as any)._resolvedTier || tier;
+    const redirectUrl = `${webUrl}/checkout/phonepe-status?orderId=${merchantOrderId}&type=${type}${resolvedTier ? `&tier=${resolvedTier}` : ''}${courseId ? `&courseId=${courseId}` : ''}&isEmi=${isEmiOrder}`;
 
     const client = getClient();
     const request = StandardCheckoutPayRequest.builder()
@@ -132,11 +443,12 @@ router.post('/create-order', protect, async (req: any, res) => {
 
     if (type === 'package') {
       await PackagePurchase.create({
-        user: req.user._id, package: packageId, packageTier: tier,
+        user: req.user._id, package: packageId, packageTier: (req as any)._resolvedTier || tier,
         amount: afterDiscount, gstAmount: gst, totalAmount: afterDiscount + gst,
         razorpayOrderId: merchantOrderId,
         status: 'created', affiliateCode: promoCode || '',
         isEmi: isEmiOrder, emiMonth: isEmiOrder ? 1 : undefined, emiTotal: isEmiOrder ? EMI_MONTHS : undefined,
+        affiliatePartnerCode: promoCode || '',
       });
     } else {
       const payment = await Payment.create({
@@ -173,7 +485,7 @@ router.get('/status/:merchantOrderId', protect, async (req: any, res) => {
     const { merchantOrderId } = req.params;
     const { type, tier, courseId, couponCode, promoCode, isEmi } = req.query;
     const isEmiOrder = isEmi === 'true';
-    const EMI_MONTHS = 3;
+    const EMI_MONTHS = 4;
 
     const client = getClient();
     const statusResp = await client.getOrderStatus(merchantOrderId);
@@ -192,44 +504,134 @@ router.get('/status/:merchantOrderId', protect, async (req: any, res) => {
       await purchase.save();
 
       const pkgTier = purchase.packageTier as any;
+      // Use Package.commissionRate set by admin; fall back to hardcoded COMMISSION_RATES
+      const purchasedPkg = await Package.findById(purchase.package).select('commissionRate');
+      const commissionRate = (purchasedPkg?.commissionRate && purchasedPkg.commissionRate > 0)
+        ? purchasedPkg.commissionRate
+        : (COMMISSION_RATES[pkgTier as keyof typeof COMMISSION_RATES] ?? 10);
       await User.findByIdAndUpdate(req.user._id, {
         packageTier: pkgTier, isAffiliate: true,
-        commissionRate: COMMISSION_RATES[pkgTier as keyof typeof COMMISSION_RATES] || 10,
+        commissionRate,
         packagePurchasedAt: new Date(), packageSuspended: false,
         $inc: { xpPoints: 500 },
       });
 
-      // Create EMI installment records
+      // Resolve EMI partner + commission before creating installments
+      let emiPartnerUserId: any = null;
+      let emiPerInstallmentComm = 0;
+      let emiInstallmentAmt = 0;
       if (isEmiOrder) {
         const totalAmt = purchase.amount + purchase.gstAmount;
-        const installmentAmt = Math.ceil(totalAmt / EMI_MONTHS);
+        emiInstallmentAmt = Math.ceil(totalAmt / EMI_MONTHS);
+        const webUrl = process.env.WEB_URL || 'https://peptly.in';
         const now = new Date();
-        // Mark installment 1 as paid
-        await EmiInstallment.create({
-          user: req.user._id, packagePurchase: purchase._id,
-          installmentNumber: 1, totalInstallments: EMI_MONTHS, amount: installmentAmt,
-          dueDate: now, paidAt: now, razorpayOrderId: merchantOrderId,
-          razorpayPaymentId: statusResp.orderId, status: 'paid',
-        });
-        // Create pending installments 2 & 3
-        for (let i = 2; i <= EMI_MONTHS; i++) {
-          const dueDate = new Date(now);
-          dueDate.setDate(dueDate.getDate() + (i - 1) * 30);
+
+        const promoCodeStr = purchase.affiliateCode || (promoCode as string) || '';
+        if (promoCodeStr) {
+          const partnerUser = await User.findOne({ affiliateCode: promoCodeStr.toUpperCase().trim() });
+          if (partnerUser) emiPartnerUserId = partnerUser._id;
+        }
+        if (emiPartnerUserId) {
+          const fullComm = await resolveFullCommission(emiPartnerUserId.toString(), purchase.amount, purchase.package?.toString());
+          emiPerInstallmentComm = Math.round(fullComm / EMI_MONTHS);
+        }
+
+        // Idempotency: only create schedule if not already exists
+        const existingInst = await EmiInstallment.findOne({ packagePurchase: purchase._id });
+        if (!existingInst) {
           await EmiInstallment.create({
             user: req.user._id, packagePurchase: purchase._id,
-            installmentNumber: i, totalInstallments: EMI_MONTHS,
-            amount: installmentAmt, dueDate, status: 'pending',
+            installmentNumber: 1, totalInstallments: EMI_MONTHS, amount: emiInstallmentAmt,
+            dueDate: now, paidAt: now, razorpayOrderId: merchantOrderId,
+            razorpayPaymentId: statusResp.orderId, status: 'paid',
+            partnerUser: emiPartnerUserId,
+            partnerCommissionAmount: emiPerInstallmentComm,
+            partnerCommissionPaid: emiPerInstallmentComm > 0,
           });
+          const dayOffsets = [15, 30, 45];
+          for (let i = 2; i <= EMI_MONTHS; i++) {
+            const dueDate = new Date(now);
+            dueDate.setDate(dueDate.getDate() + dayOffsets[i - 2]);
+            const inst = await EmiInstallment.create({
+              user: req.user._id, packagePurchase: purchase._id,
+              installmentNumber: i, totalInstallments: EMI_MONTHS,
+              amount: emiInstallmentAmt, dueDate, status: 'pending',
+              partnerUser: emiPartnerUserId,
+              partnerCommissionAmount: emiPerInstallmentComm,
+              partnerCommissionPaid: false,
+            });
+            await EmiInstallment.findByIdAndUpdate(inst._id, { paymentLink: `${webUrl}/pay/emi/${inst._id}` });
+          }
         }
       }
 
-      if (couponCode) await Coupon.findOneAndUpdate({ code: (couponCode as string).toUpperCase().trim() }, { $inc: { usedCount: 1 } });
-      await creditMLM(req.user._id.toString(), purchase.amount, purchase._id.toString(), pkgTier);
+      try {
+        if (couponCode) await Coupon.findOneAndUpdate({ code: (couponCode as string).toUpperCase().trim() }, { $inc: { usedCount: 1 } });
+      } catch {}
+
+      // ── NON-CRITICAL: commission ──────────────────────────────────────────
+      try {
+        if (isEmiOrder) {
+          if (emiPartnerUserId && emiPerInstallmentComm > 0) {
+            const alreadyCredited = await Commission.findOne({ buyer: req.user._id, packagePurchaseId: purchase._id, level: 1 });
+            if (!alreadyCredited) {
+              await Commission.create({
+                earner: emiPartnerUserId, earnerTier: (await User.findById(emiPartnerUserId))?.packageTier || 'free',
+                earnerCommissionRate: emiPerInstallmentComm * EMI_MONTHS,
+                buyer: req.user._id, buyerPackageTier: pkgTier,
+                level: 1, levelRate: emiPerInstallmentComm,
+                saleAmount: emiInstallmentAmt, commissionAmount: emiPerInstallmentComm,
+                packagePurchaseId: purchase._id, status: 'approved',
+              });
+              const updatedPartner = await User.findByIdAndUpdate(emiPartnerUserId, { $inc: { wallet: emiPerInstallmentComm, totalEarnings: emiPerInstallmentComm } }, { new: true });
+              await Transaction.create({
+                user: emiPartnerUserId, type: 'credit', category: 'affiliate_commission',
+                amount: emiPerInstallmentComm,
+                description: `EMI Commission — Installment 1/${EMI_MONTHS} — ${pkgTier} package`,
+                referenceId: purchase._id.toString(), status: 'completed',
+                balanceAfter: updatedPartner?.wallet || 0,
+              });
+              await User.findByIdAndUpdate(emiPartnerUserId, {
+                $push: { notifications: { type: 'commission', message: `🎉 ₹${emiPerInstallmentComm} EMI commission earned (Installment 1/${EMI_MONTHS}) — ${pkgTier}!`, read: false, createdAt: new Date() } }
+              });
+              await User.findByIdAndUpdate(req.user._id, { upline1: emiPartnerUserId });
+            }
+          }
+        } else {
+          await creditMLM(req.user._id.toString(), purchase.amount, purchase._id.toString(), pkgTier, purchase.package?.toString());
+        }
+      } catch (commErr: any) {
+        console.error('[PhonePe Package Commission Error]', commErr.message);
+      }
+
+      // ── NON-CRITICAL: welcome notification ───────────────────────────────
+      try {
+        await User.findByIdAndUpdate(req.user._id, {
+          $push: { notifications: { type: 'package', message: `🎉 Welcome to ${pkgTier}! Your account is now upgraded.`, read: false, createdAt: new Date() } }
+        });
+      } catch {}
 
       const user = await User.findById(req.user._id);
       if (user) {
-        user.notifications.push({ type: 'package', message: `🎉 Welcome to ${pkgTier}! Your account is now upgraded.`, read: false, createdAt: new Date() });
-        await user.save();
+
+        // Send login credentials via email + WhatsApp
+        const pkg = await Package.findOne({ tier: pkgTier, isActive: true }).select('name');
+        const pkgName = pkg?.name || pkgTier;
+        let password = await redisClient.get(`reg-pw:${user._id}`);
+        if (!password) {
+          // Generate new password if registration one expired
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+          password = 'Tl@' + Array.from({ length: 7 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+          user.password = password;
+          await user.save();
+        }
+        await redisClient.del(`reg-pw:${user._id}`);
+
+        try { await sendPurchaseWelcomeEmail(user.email, user.name, pkgName, user.email, password); } catch {}
+        if (user.phone) {
+          const waMsg = `🎉 Welcome to TruLearnix, ${user.name.split(' ')[0]}!\n\nYour *${pkgName} Package* is now active!\n\n📧 Email: ${user.email}\n🔑 Password: *${password}*\n\n👉 Login: ${process.env.WEB_URL}/login\n\n⚠️ Please change your password after first login.\n\nWelcome to the family! 🚀`;
+          try { await sendWhatsAppText(user.phone, waMsg); } catch {}
+        }
       }
 
       return res.json({ success: true, state: 'COMPLETED', message: `Welcome to ${pkgTier}!`, tier: pkgTier, isEmi: isEmiOrder });
@@ -240,30 +642,90 @@ router.get('/status/:merchantOrderId', protect, async (req: any, res) => {
       if (!payment) return res.status(404).json({ success: false, message: 'Payment record not found' });
       if (payment.status === 'paid') return res.json({ success: true, state: 'COMPLETED', message: 'Already enrolled', courseId });
 
+      // ── CRITICAL: mark confirmed ──────────────────────────────────────────
       payment.status = 'paid';
       payment.razorpayPaymentId = statusResp.orderId;
       await payment.save();
 
-      await Enrollment.create({
-        student: req.user._id, course: courseId,
-        paymentId: statusResp.orderId, orderId: merchantOrderId, amount: payment.amount,
-      });
-
-      const Course = (await import('../models/Course')).default;
-      await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
-
-      if ((payment as any).affiliateUser) {
-        const affiliate = (payment as any).affiliateUser;
-        const commRate = parseFloat(process.env.AFFILIATE_COMMISSION_RATE || '10');
-        const commAmt = Math.round(payment.amount * commRate / 100);
-        await User.findByIdAndUpdate(affiliate._id, { $inc: { wallet: commAmt, totalEarnings: commAmt } });
-        await Transaction.create({
-          user: affiliate._id, type: 'credit', category: 'affiliate_commission',
-          amount: commAmt, description: 'Partner commission — course sale', referenceId: payment._id, status: 'completed',
+      // ── CRITICAL: enroll student ──────────────────────────────────────────
+      const alreadyEnrolled = await Enrollment.findOne({ student: req.user._id, course: courseId });
+      if (!alreadyEnrolled) {
+        await Enrollment.create({
+          student: req.user._id, course: courseId,
+          paymentId: statusResp.orderId, orderId: merchantOrderId, amount: payment.amount,
         });
+        const Course = (await import('../models/Course')).default;
+        await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
       }
 
-      if (couponCode) await Coupon.findOneAndUpdate({ code: (couponCode as string).toUpperCase().trim() }, { $inc: { usedCount: 1 } });
+      // ── NON-CRITICAL: affiliate status for buyer ──────────────────────────
+      try {
+        await User.findOneAndUpdate(
+          { _id: req.user._id, isAffiliate: { $ne: true } },
+          { isAffiliate: true, commissionRate: 25 }
+        );
+      } catch {}
+
+      // ── NON-CRITICAL: partner commission ─────────────────────────────────
+      try {
+        const affiliateId = (payment as any).affiliateUser?._id || (payment as any).affiliateUser;
+        if (affiliateId) {
+          const affiliate = await User.findById(affiliateId);
+          if (affiliate) {
+            const affiliatePkg = await Package.findOne({ tier: affiliate.packageTier }).lean();
+            const crc = affiliatePkg?.courseReferralCommission;
+            const commRate = crc?.value ?? parseFloat(process.env.AFFILIATE_COMMISSION_RATE || '10');
+            const commAmt = crc?.value > 0
+              ? (crc.type === 'flat' ? crc.value : Math.round(payment.amount * crc.value / 100))
+              : Math.round(payment.amount * parseFloat(process.env.AFFILIATE_COMMISSION_RATE || '10') / 100);
+            const alreadyCredited = await Commission.findOne({ buyer: req.user._id, paymentId: payment._id });
+            if (!alreadyCredited && commAmt > 0) {
+              const updatedAffiliate = await User.findByIdAndUpdate(affiliate._id, { $inc: { wallet: commAmt, totalEarnings: commAmt } }, { new: true });
+              await Transaction.create({
+                user: affiliate._id, type: 'credit', category: 'affiliate_commission',
+                amount: commAmt, description: 'Partner commission — course sale', referenceId: payment._id, status: 'completed',
+                balanceAfter: updatedAffiliate?.wallet || 0,
+              });
+              await Commission.create({
+                earner: affiliate._id, earnerTier: affiliate.packageTier || 'free',
+                earnerCommissionRate: commRate, buyer: req.user._id,
+                buyerPackageTier: 'course', level: 1, levelRate: commRate,
+                saleAmount: payment.amount, commissionAmount: commAmt,
+                paymentId: payment._id, saleType: 'course', status: 'approved',
+              });
+              await User.findByIdAndUpdate(affiliate._id, {
+                $push: { notifications: { type: 'commission', message: `🎉 ₹${commAmt} earned! Commission from a course sale.`, read: false, createdAt: new Date() } }
+              });
+            }
+          }
+        }
+      } catch (commErr: any) {
+        console.error('[PhonePe Course Commission Error]', commErr.message);
+      }
+
+      // ── NON-CRITICAL: coupon ──────────────────────────────────────────────
+      try {
+        if (couponCode) await Coupon.findOneAndUpdate({ code: (couponCode as string).toUpperCase().trim() }, { $inc: { usedCount: 1 } });
+      } catch {}
+
+      // ── NON-CRITICAL: welcome credentials (new users) ─────────────────────
+      try {
+        const buyer = await User.findById(req.user._id);
+        if (buyer) {
+          let password = await redisClient.get(`reg-pw:${buyer._id}`);
+          if (password) {
+            await redisClient.del(`reg-pw:${buyer._id}`);
+            const Course = (await import('../models/Course')).default;
+            const courseDoc = await Course.findById(courseId).select('title');
+            const courseName = (courseDoc as any)?.title || 'your course';
+            try { await sendPurchaseWelcomeEmail(buyer.email, buyer.name, courseName, buyer.email, password); } catch {}
+            if (buyer.phone) {
+              const waMsg = `🎉 Welcome to TruLearnix, ${buyer.name.split(' ')[0]}!\n\nYou are now enrolled in *${courseName}*!\n\n📧 Email: ${buyer.email}\n🔑 Password: *${password}*\n\n👉 Login & start learning: ${process.env.WEB_URL}/login\n\n⚠️ Please change your password after first login.`;
+              try { await sendWhatsAppText(buyer.phone, waMsg); } catch {}
+            }
+          }
+        }
+      } catch {}
 
       return res.json({ success: true, state: 'COMPLETED', message: 'Enrollment successful!', courseId });
     }
@@ -308,6 +770,14 @@ router.post('/emi/pay', protect, async (req: any, res) => {
     });
     if (prevUnpaid) return res.status(400).json({ success: false, message: 'Pay previous installments first' });
 
+    const chargeAmount = installment.amount - ((installment as any).walletAmountUsed || 0);
+    if (chargeAmount <= 0) {
+      installment.status = 'paid';
+      installment.paidAt = new Date();
+      await installment.save();
+      return res.json({ success: true, alreadyPaid: true, message: 'Already fully paid via wallet.' });
+    }
+
     const merchantOrderId = `TL_EMI_${installmentId}_${Date.now()}`;
     const webUrl = process.env.WEB_URL || 'https://peptly.in';
     const redirectUrl = `${webUrl}/checkout/phonepe-emi-status?installmentId=${installmentId}&orderId=${merchantOrderId}`;
@@ -315,7 +785,7 @@ router.post('/emi/pay', protect, async (req: any, res) => {
     const client = getClient();
     const request = StandardCheckoutPayRequest.builder()
       .merchantOrderId(merchantOrderId)
-      .amount(Math.round(installment.amount * 100))
+      .amount(Math.round(chargeAmount * 100))
       .redirectUrl(redirectUrl)
       .message(`EMI Installment ${installment.installmentNumber} of ${installment.totalInstallments}`)
       .build();
@@ -331,11 +801,133 @@ router.post('/emi/pay', protect, async (req: any, res) => {
   }
 });
 
+// ── POST /api/phonepe/emi/pay-wallet ─────────────────────────────────────────
+// Use wallet balance (fully or partially) to pay an EMI installment
+router.post('/emi/pay-wallet', protect, async (req: any, res) => {
+  try {
+    const { installmentId } = req.body;
+    const installment = await EmiInstallment.findOne({ _id: installmentId, user: req.user._id });
+    if (!installment) return res.status(404).json({ success: false, message: 'Installment not found' });
+    if (installment.status === 'paid') return res.status(400).json({ success: false, message: 'Already paid' });
+
+    // Ensure previous installments are paid
+    const prevUnpaid = await EmiInstallment.findOne({
+      packagePurchase: installment.packagePurchase,
+      installmentNumber: { $lt: installment.installmentNumber },
+      status: { $ne: 'paid' },
+    });
+    if (prevUnpaid) return res.status(400).json({ success: false, message: 'Pay previous installments first' });
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const walletBalance = user.wallet || 0;
+    if (walletBalance <= 0) return res.status(400).json({ success: false, message: 'No wallet balance available' });
+
+    const alreadyUsed = (installment as any).walletAmountUsed || 0;
+    const stillNeeded = installment.amount - alreadyUsed;
+    if (stillNeeded <= 0) {
+      installment.status = 'paid'; installment.paidAt = new Date();
+      await installment.save();
+      return res.json({ success: true, fullyPaid: true, message: 'Installment already fully covered by wallet.' });
+    }
+    const walletToUse = Math.min(walletBalance, stillNeeded);
+    const remaining = stillNeeded - walletToUse;
+
+    // Deduct from wallet
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      { $inc: { wallet: -walletToUse } },
+      { new: true }
+    );
+    await Transaction.create({
+      user: user._id, type: 'debit', category: 'emi_payment',
+      amount: walletToUse,
+      description: `Wallet used for EMI installment ${installment.installmentNumber}/${installment.totalInstallments}`,
+      referenceId: String(installment._id), status: 'completed',
+      balanceAfter: updatedUser?.wallet || 0,
+    });
+
+    (installment as any).walletAmountUsed = alreadyUsed + walletToUse;
+
+    // ── Full wallet payment ──
+    if (remaining === 0) {
+      installment.status = 'paid';
+      installment.paidAt = new Date();
+      await installment.save();
+
+      // Unlock access if no more pending/overdue
+      const stillDue = await EmiInstallment.findOne({
+        packagePurchase: installment.packagePurchase,
+        status: { $in: ['pending', 'overdue'] },
+        _id: { $ne: installment._id },
+      });
+      if (!stillDue) await User.findByIdAndUpdate(user._id, { packageSuspended: false });
+
+      // Credit partner commission
+      if (installment.partnerUser && !installment.partnerCommissionPaid && installment.partnerCommissionAmount > 0) {
+        const commAmt = installment.partnerCommissionAmount;
+        const updatedPartner = await User.findByIdAndUpdate(
+          installment.partnerUser,
+          { $inc: { wallet: commAmt, totalEarnings: commAmt } },
+          { new: true }
+        );
+        await Transaction.create({
+          user: installment.partnerUser, type: 'credit', category: 'affiliate_commission',
+          amount: commAmt,
+          description: `EMI installment ${installment.installmentNumber} commission`,
+          referenceId: String(installment._id), status: 'completed',
+          balanceAfter: updatedPartner?.wallet || 0,
+        });
+        await EmiInstallment.findByIdAndUpdate(installment._id, { partnerCommissionPaid: true });
+        await User.findByIdAndUpdate(installment.partnerUser, {
+          $push: { notifications: { type: 'commission', message: `₹${commAmt} EMI commission received (Inst ${installment.installmentNumber}/${installment.totalInstallments})`, read: false, createdAt: new Date() } }
+        });
+      }
+
+      return res.json({
+        success: true, fullyPaid: true,
+        message: `₹${walletToUse} deducted from wallet. Installment fully paid!`,
+        walletUsed: walletToUse, remaining: 0,
+      });
+    }
+
+    // ── Partial wallet payment — create PhonePe order for remaining ──
+    await installment.save();
+
+    const merchantOrderId = `TL_EMI_${installmentId}_${Date.now()}`;
+    const webUrl = process.env.WEB_URL || 'https://peptly.in';
+    const redirectUrl = `${webUrl}/checkout/phonepe-emi-status?installmentId=${installmentId}&orderId=${merchantOrderId}`;
+
+    const client = getClient();
+    const request = StandardCheckoutPayRequest.builder()
+      .merchantOrderId(merchantOrderId)
+      .amount(Math.round(remaining * 100))
+      .redirectUrl(redirectUrl)
+      .message(`EMI Installment ${installment.installmentNumber}/${installment.totalInstallments} — remaining after wallet`)
+      .build();
+
+    const ppResponse = await client.pay(request);
+    installment.razorpayOrderId = merchantOrderId;
+    await installment.save();
+
+    return res.json({
+      success: true, fullyPaid: false,
+      message: `₹${walletToUse} deducted from wallet. Pay ₹${remaining} more to complete.`,
+      walletUsed: walletToUse, remaining,
+      redirectUrl: ppResponse.redirectUrl,
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e?.message });
+  }
+});
+
 // ── GET /api/phonepe/emi/status ───────────────────────────────────────────────
-router.get('/emi/status', protect, async (req: any, res) => {
+// Public endpoint — verified by installmentId + orderId pair (no login required)
+router.get('/emi/status', async (req: any, res) => {
   try {
     const { installmentId, orderId } = req.query;
-    const installment = await EmiInstallment.findOne({ _id: installmentId, user: req.user._id });
+    const installment = await EmiInstallment.findOne({ _id: installmentId, razorpayOrderId: orderId });
     if (!installment) return res.status(404).json({ success: false, message: 'Installment not found' });
     if (installment.status === 'paid') return res.json({ success: true, message: 'Already paid' });
 
@@ -351,15 +943,102 @@ router.get('/emi/status', protect, async (req: any, res) => {
     installment.razorpayPaymentId = statusResp.orderId;
     await installment.save();
 
-    const anyOverdue = await EmiInstallment.findOne({ packagePurchase: installment.packagePurchase, status: 'overdue' });
-    if (!anyOverdue) await User.findByIdAndUpdate(req.user._id, { packageSuspended: false });
+    const anyOverdue = await EmiInstallment.findOne({ packagePurchase: installment.packagePurchase, status: 'overdue', _id: { $ne: installment._id } });
+    if (!anyOverdue) await User.findByIdAndUpdate(installment.user, { packageSuspended: false });
 
-    const remaining = await EmiInstallment.findOne({ packagePurchase: installment.packagePurchase, status: { $in: ['pending', 'overdue'] } });
-    if (!remaining) await User.findByIdAndUpdate(req.user._id, { packageSuspended: false });
+    const remaining = await EmiInstallment.findOne({ packagePurchase: installment.packagePurchase, status: { $in: ['pending', 'overdue'] }, _id: { $ne: installment._id } });
+    if (!remaining) await User.findByIdAndUpdate(installment.user, { packageSuspended: false });
+
+    // Credit partner commission for this installment
+    if (installment.partnerUser && !installment.partnerCommissionPaid && installment.partnerCommissionAmount > 0) {
+      const updatedPartner = await User.findByIdAndUpdate(
+        installment.partnerUser,
+        { $inc: { wallet: installment.partnerCommissionAmount, totalEarnings: installment.partnerCommissionAmount } },
+        { new: true }
+      );
+      await Transaction.create({
+        user: installment.partnerUser, type: 'credit', category: 'affiliate_commission',
+        amount: installment.partnerCommissionAmount,
+        description: `EMI installment ${installment.installmentNumber} commission`,
+        referenceId: String(installment._id), status: 'completed',
+        balanceAfter: updatedPartner?.wallet || 0,
+      });
+      await EmiInstallment.findByIdAndUpdate(installment._id, { partnerCommissionPaid: true });
+    }
 
     res.json({ success: true, message: 'EMI payment successful!' });
   } catch (e: any) {
     res.status(500).json({ success: false, message: e?.message });
+  }
+});
+
+// ── GET /api/phonepe/emi/pay-link/:installmentId ──────────────────────────────
+// Public endpoint — no auth required, installmentId acts as token
+router.get('/emi/pay-link/:installmentId', async (req: any, res) => {
+  try {
+    const { installmentId } = req.params;
+    const installment = await EmiInstallment.findById(installmentId)
+      .populate('packagePurchase')
+      .populate('user', 'name email phone');
+    if (!installment) return res.status(404).json({ success: false, message: 'Installment not found' });
+    if (installment.status === 'paid') {
+      return res.json({ success: true, alreadyPaid: true, message: 'This installment has already been paid.' });
+    }
+
+    const purchase = installment.packagePurchase as any;
+    const packageName = purchase?.packageTier || 'Package';
+
+    // Amount to charge = total - already paid from wallet
+    const chargeAmount = installment.amount - ((installment as any).walletAmountUsed || 0);
+    if (chargeAmount <= 0) {
+      // Fully covered by wallet already — just mark paid
+      installment.status = 'paid';
+      installment.paidAt = new Date();
+      await installment.save();
+      return res.json({ success: true, alreadyPaid: true, message: 'Already fully paid via wallet.' });
+    }
+
+    // Create a fresh PhonePe order for this installment
+    const merchantOrderId = `TL_EMI_${installmentId}_${Date.now()}`;
+    const webUrl = process.env.WEB_URL || 'https://peptly.in';
+    const redirectUrl = `${webUrl}/checkout/phonepe-emi-status?installmentId=${installmentId}&orderId=${merchantOrderId}`;
+
+    const client = getClient();
+    const walletUsed = (installment as any).walletAmountUsed || 0;
+    const msgSuffix = walletUsed > 0 ? ` (₹${walletUsed} paid via wallet)` : '';
+    const request = StandardCheckoutPayRequest.builder()
+      .merchantOrderId(merchantOrderId)
+      .amount(Math.round(chargeAmount * 100))
+      .redirectUrl(redirectUrl)
+      .message(`EMI Installment ${installment.installmentNumber} of ${installment.totalInstallments}${msgSuffix}`)
+      .build();
+
+    const ppResponse = await client.pay(request);
+
+    // Save order id on installment
+    installment.razorpayOrderId = merchantOrderId;
+    await installment.save();
+
+    return res.json({
+      success: true,
+      installment: {
+        _id: installment._id,
+        installmentNumber: installment.installmentNumber,
+        totalInstallments: installment.totalInstallments,
+        amount: installment.amount,
+        walletAmountUsed: walletUsed,
+        chargeAmount,
+        dueDate: installment.dueDate,
+        status: installment.status,
+      },
+      redirectUrl: ppResponse.redirectUrl,
+      amount: chargeAmount,
+      dueDate: installment.dueDate,
+      packageName,
+    });
+  } catch (e: any) {
+    console.error('[PhonePe emi/pay-link]', e?.message || e);
+    res.status(500).json({ success: false, message: e?.message || 'Failed to create payment link' });
   }
 });
 

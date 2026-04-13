@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const createClass = async (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, courseId, scheduledAt, duration, platform } = req.body;
+    const { title, description, courseId, batchId, scheduledAt, duration, platform } = req.body;
 
     let zoomData = {};
     let roomId;
@@ -17,11 +17,13 @@ export const createClass = async (req: AuthRequest, res: Response) => {
       zoomData = { zoomMeetingId: zoom.meetingId, zoomJoinUrl: zoom.joinUrl, zoomStartUrl: zoom.startUrl, zoomPassword: zoom.password };
     } else {
       roomId = uuidv4();
+      (zoomData as any).agoraChannelName = 'tl-' + uuidv4().replace(/-/g, '').substring(0, 16);
     }
 
     const liveClass = await LiveClass.create({
       title, description,
-      course: courseId,
+      course: courseId || undefined,
+      batch: batchId || undefined,
       mentor: req.user._id,
       scheduledAt: new Date(scheduledAt),
       duration,
@@ -94,11 +96,10 @@ export const joinClass = async (req: AuthRequest, res: Response) => {
 
 export const startClass = async (req: AuthRequest, res: Response) => {
   try {
-    const liveClass = await LiveClass.findOneAndUpdate(
-      { _id: req.params.id, mentor: req.user._id },
-      { status: 'live' },
-      { new: true }
-    );
+    const isAdmin = ['superadmin', 'admin', 'manager'].includes(req.user.role);
+    const filter: any = { _id: req.params.id };
+    if (!isAdmin) filter.mentor = req.user._id;
+    const liveClass = await LiveClass.findOneAndUpdate(filter, { status: 'live', startedAt: new Date() }, { new: true });
     if (!liveClass) return res.status(404).json({ success: false, message: 'Class not found' });
     res.json({ success: true, liveClass });
   } catch (error: any) {
@@ -108,11 +109,10 @@ export const startClass = async (req: AuthRequest, res: Response) => {
 
 export const endClass = async (req: AuthRequest, res: Response) => {
   try {
-    const liveClass = await LiveClass.findOneAndUpdate(
-      { _id: req.params.id, mentor: req.user._id },
-      { status: 'ended' },
-      { new: true }
-    );
+    const isAdmin = ['superadmin', 'admin', 'manager'].includes(req.user.role);
+    const filter: any = { _id: req.params.id };
+    if (!isAdmin) filter.mentor = req.user._id;
+    const liveClass = await LiveClass.findOneAndUpdate(filter, { status: 'ended', endedAt: new Date() }, { new: true });
     if (!liveClass) return res.status(404).json({ success: false, message: 'Class not found' });
     res.json({ success: true, liveClass });
   } catch (error: any) {

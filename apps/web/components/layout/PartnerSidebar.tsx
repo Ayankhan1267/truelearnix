@@ -8,12 +8,13 @@ import {
   LayoutDashboard, TrendingUp, Trophy, Network, Users,
   GraduationCap, ShieldCheck, Link2, UserCheck, Star,
   Award, ChevronRight, LogOut, Menu, X, Globe, BookOpen,
-  Flame, Coins, Bell, ChevronDown
+  Flame, Coins, Bell, ChevronDown, CreditCard
 } from 'lucide-react'
 
 const navItems = [
   { href: '/partner/dashboard', icon: LayoutDashboard, label: 'Dashboard', desc: 'Overview & Stats' },
   { href: '/partner/earnings', icon: TrendingUp, label: 'Earnings', desc: 'Income & Analytics' },
+  { href: '/partner/emi', icon: CreditCard, label: 'EMI Commissions', desc: 'Installment Earnings' },
   { href: '/partner/leaderboard', icon: Trophy, label: 'Leaderboard', desc: 'Top Performers' },
   { href: '/partner/m-type', icon: Network, label: 'M-Type Tree', desc: 'Your Network' },
   { href: '/partner/crm', icon: Users, label: 'CRM', desc: 'Lead Management' },

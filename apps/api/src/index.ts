@@ -45,6 +45,8 @@ import mentorRouter from './routes/mentor';
 import financeRouter from './routes/finance';
 import marketingRouter from './routes/marketing';
 import novaRouter, { bootstrapNovaCrons } from './routes/nova';
+import managerRouter from './routes/manager';
+import salesRouter from './routes/sales';
 
 dotenv.config();
 
@@ -64,6 +66,7 @@ export const io = new Server(server, {
   cors: { origin: allowedOrigins, credentials: true }
 });
 
+app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
@@ -72,7 +75,7 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files as static assets
 app.use('/uploads', express.static('/var/www/trulearnix/uploads'));
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5000, skip: (req: any) => !!req.headers.authorization || !!req.headers.cookie });
 app.use('/api/', limiter);
 
 const strictLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
@@ -116,6 +119,8 @@ app.use('/api/mentor', mentorRouter);
 app.use('/api/finance', financeRouter);
 app.use('/api/marketing', marketingRouter);
 app.use('/api/nova', novaRouter);
+app.use('/api/manager', managerRouter);
+app.use('/api/sales', salesRouter);
 
 // Health
 app.get('/health', (_, res) => res.json({ status: 'ok', service: 'TureLearnix API', version: '2.1' }));

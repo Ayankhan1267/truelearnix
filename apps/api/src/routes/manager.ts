@@ -1,0 +1,264 @@
+import { Router } from 'express';
+import { protect, authorize } from '../middleware/auth';
+import User from '../models/User';
+import PartnerTip from '../models/PartnerTip';
+import PartnerGoal from '../models/PartnerGoal';
+import Commission from '../models/Commission';
+import EmiInstallment from '../models/EmiInstallment';
+
+const router = Router();
+const guard = [protect, authorize('manager', 'admin', 'superadmin')];
+
+// ── Dashboard stats ──────────────────────────────────────────────────────────
+router.get('/stats', ...guard, async (req: any, res) => {
+  try {
+    const managerId = req.user._id;
+    const partners = await User.find({ managerId }).select('_id totalEarnings wallet packageTier isAffiliate affiliateCode');
+
+    const totalPartners    = partners.length;
+    const activePartners   = partners.filter(p => (p as any).packageTier !== 'free').length;
+    const totalEarnings    = partners.reduce((s, p) => s + ((p as any).totalEarnings || 0), 0);
+
+    // Referrals made by assigned partners this month
+    const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+    const partnerIds = partners.map(p => p._id);
+    const monthlyReferrals = await User.countDocuments({
+      referredBy: { $in: partnerIds },
+      createdAt: { $gte: startOfMonth },
+    });
+
+    const totalGoals     = await PartnerGoal.countDocuments({ manager: managerId, status: 'active' });
+    const completedGoals = await PartnerGoal.countDocuments({ manager: managerId, status: 'completed' });
+    const unreadTips     = await PartnerTip.countDocuments({ manager: managerId, isRead: false });
+
+    // Manager's own earnings (from managerCommission credited to their wallet)
+    const managerUser = await User.findById(managerId).select('totalEarnings wallet');
+    const myEarnings = (managerUser as any)?.totalEarnings || 0;
+    const myWallet   = (managerUser as any)?.wallet || 0;
+
+    // Manager earnings this month
+    const Commission = (await import('../models/Commission')).default;
+    const myMonthlyCommissions = await Commission.aggregate([
+      { $match: { earner: managerId, createdAt: { $gte: startOfMonth }, status: 'approved' } },
+      { $group: { _id: null, total: { $sum: '$commissionAmount' } } },
+    ]);
+    const myMonthlyEarnings = myMonthlyCommissions[0]?.total || 0;
+
+    res.json({ success: true, stats: {
+      totalPartners, activePartners, totalEarnings, monthlyReferrals,
+      totalGoals, completedGoals, unreadTips,
+      myEarnings, myWallet, myMonthlyEarnings,
+    }});
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── List assigned partners ────────────────────────────────────────────────────
+router.get('/partners', ...guard, async (req: any, res) => {
+  try {
+    const { search, tier, page = 1, limit = 20 } = req.query as any;
+    const filter: any = { managerId: req.user._id };
+    if (tier) filter.packageTier = tier;
+    if (search) filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+      { affiliateCode: { $regex: search, $options: 'i' } },
+    ];
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [partners, total] = await Promise.all([
+      User.find(filter)
+        .select('name email phone avatar packageTier affiliateCode totalEarnings wallet commissionRate isActive createdAt packagePurchasedAt kyc referredBy upline1')
+        .skip(skip).limit(Number(limit)).sort('-createdAt'),
+      User.countDocuments(filter),
+    ]);
+
+    // Enrich each partner with referral count
+    const enriched = await Promise.all(partners.map(async (p: any) => {
+      const [l1Count, goalsCount, activeGoals] = await Promise.all([
+        User.countDocuments({ referredBy: p._id }),
+        PartnerGoal.countDocuments({ partner: p._id, manager: req.user._id }),
+        PartnerGoal.countDocuments({ partner: p._id, manager: req.user._id, status: 'active' }),
+      ]);
+      return { ...p.toObject(), l1Count, goalsCount, activeGoals };
+    }));
+
+    res.json({ success: true, partners: enriched, total, pages: Math.ceil(total / Number(limit)) });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Partner detail ────────────────────────────────────────────────────────────
+router.get('/partners/:id', ...guard, async (req: any, res) => {
+  try {
+    const partner = await User.findOne({ _id: req.params.id, managerId: req.user._id })
+      .select('-password -otp -otpExpiry');
+    if (!partner) return res.status(404).json({ success: false, message: 'Partner not found or not assigned to you' });
+
+    // L1 referrals
+    const l1 = await User.find({ referredBy: partner._id })
+      .select('name email packageTier totalEarnings createdAt packagePurchasedAt affiliateCode')
+      .sort('-createdAt').limit(20);
+
+    const l1Total = await User.countDocuments({ referredBy: partner._id });
+    const l1Paid  = await User.countDocuments({ referredBy: partner._id, packageTier: { $ne: 'free' } });
+
+    // Recent commissions
+    const commissions = await Commission.find({ affiliate: partner._id })
+      .sort('-createdAt').limit(10)
+      .populate('buyer', 'name email');
+
+    // Tips from this manager
+    const tips = await PartnerTip.find({ partner: partner._id, manager: req.user._id })
+      .sort('-createdAt').limit(20);
+
+    // Goals
+    const goals = await PartnerGoal.find({ partner: partner._id, manager: req.user._id })
+      .sort('-createdAt');
+
+    res.json({ success: true, partner, l1, l1Total, l1Paid, commissions, tips, goals });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Send tip/message to partner ───────────────────────────────────────────────
+router.post('/partners/:id/tips', ...guard, async (req: any, res) => {
+  try {
+    const { message, category = 'tip' } = req.body;
+    if (!message?.trim()) return res.status(400).json({ success: false, message: 'Message required' });
+
+    // Verify partner is assigned to this manager
+    const partner = await User.findOne({ _id: req.params.id, managerId: req.user._id });
+    if (!partner) return res.status(403).json({ success: false, message: 'Not your assigned partner' });
+
+    const tip = await PartnerTip.create({ manager: req.user._id, partner: req.params.id, message, category });
+    res.status(201).json({ success: true, tip });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Delete tip ────────────────────────────────────────────────────────────────
+router.delete('/tips/:tipId', ...guard, async (req: any, res) => {
+  try {
+    await PartnerTip.findOneAndDelete({ _id: req.params.tipId, manager: req.user._id });
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Create goal for partner ───────────────────────────────────────────────────
+router.post('/partners/:id/goals', ...guard, async (req: any, res) => {
+  try {
+    const { title, description, targetValue, metric, unit, dueDate, reward } = req.body;
+    if (!title || !targetValue) return res.status(400).json({ success: false, message: 'Title and target required' });
+
+    const partner = await User.findOne({ _id: req.params.id, managerId: req.user._id });
+    if (!partner) return res.status(403).json({ success: false, message: 'Not your assigned partner' });
+
+    // Auto-set currentValue based on metric
+    let currentValue = 0;
+    if (metric === 'referrals') {
+      currentValue = await User.countDocuments({ referredBy: req.params.id });
+    } else if (metric === 'earnings') {
+      currentValue = (partner as any).totalEarnings || 0;
+    }
+
+    const goal = await PartnerGoal.create({
+      manager: req.user._id, partner: req.params.id,
+      title, description, targetValue: Number(targetValue), currentValue,
+      metric: metric || 'referrals', unit: unit || 'referrals',
+      dueDate, reward, status: 'active',
+    });
+    res.status(201).json({ success: true, goal });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Update goal (progress or status) ─────────────────────────────────────────
+router.patch('/goals/:goalId', ...guard, async (req: any, res) => {
+  try {
+    const goal = await PartnerGoal.findOneAndUpdate(
+      { _id: req.params.goalId, manager: req.user._id },
+      req.body,
+      { new: true }
+    );
+    if (!goal) return res.status(404).json({ success: false, message: 'Goal not found' });
+    res.json({ success: true, goal });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Delete goal ───────────────────────────────────────────────────────────────
+router.delete('/goals/:goalId', ...guard, async (req: any, res) => {
+  try {
+    await PartnerGoal.findOneAndDelete({ _id: req.params.goalId, manager: req.user._id });
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Leaderboard of my partners ────────────────────────────────────────────────
+router.get('/leaderboard', ...guard, async (req: any, res) => {
+  try {
+    const partners = await User.find({ managerId: req.user._id })
+      .select('name avatar affiliateCode packageTier totalEarnings wallet commissionRate')
+      .sort('-totalEarnings').limit(20);
+
+    const enriched = await Promise.all(partners.map(async p => {
+      const l1Count = await User.countDocuments({ referredBy: p._id });
+      const l1Paid  = await User.countDocuments({ referredBy: p._id, packageTier: { $ne: 'free' } });
+      return { ...p.toObject(), l1Count, l1Paid };
+    }));
+
+    res.json({ success: true, leaderboard: enriched });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Partner tips visible to partner (partner reads own tips) ──────────────────
+router.get('/my-tips', protect, async (req: any, res) => {
+  try {
+    const tips = await PartnerTip.find({ partner: req.user._id })
+      .populate('manager', 'name avatar phone')
+      .sort('-createdAt').limit(50);
+    await PartnerTip.updateMany({ partner: req.user._id, isRead: false }, { isRead: true });
+    res.json({ success: true, tips });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── Partner goals visible to partner ─────────────────────────────────────────
+router.get('/my-goals', protect, async (req: any, res) => {
+  try {
+    const goals = await PartnerGoal.find({ partner: req.user._id })
+      .populate('manager', 'name avatar phone')
+      .sort('-createdAt');
+    res.json({ success: true, goals });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── My EMI Commissions (from partner's EMI sales) ────────────────────────────
+router.get('/emi-commissions', ...guard, async (req: any, res) => {
+  try {
+    const managerId = req.user._id;
+    const installments = await EmiInstallment.find({ managerUser: managerId })
+      .populate({ path: 'packagePurchase', populate: { path: 'package', select: 'name tier' } })
+      .populate('partnerUser', 'name affiliateCode')
+      .sort('-createdAt');
+
+    const enriched = installments.map((inst: any) => ({
+      _id: inst._id,
+      installmentNumber: inst.installmentNumber,
+      totalInstallments: inst.totalInstallments,
+      amount: inst.amount,
+      dueDate: inst.dueDate,
+      paidAt: inst.paidAt,
+      status: inst.status,
+      commissionAmount: inst.managerCommissionAmount,
+      commissionPaid: inst.managerCommissionPaid,
+      packageName: inst.packagePurchase?.package?.name || '',
+      packageTier: inst.packagePurchase?.package?.tier || '',
+      partnerName: inst.partnerUser?.name || '',
+      partnerCode: inst.partnerUser?.affiliateCode || '',
+      customerUserId: inst.user,
+    }));
+
+    const totalCommission = enriched.reduce((s, i) => s + (i.commissionAmount || 0), 0);
+    const earnedCommission = enriched.filter(i => i.commissionPaid).reduce((s, i) => s + (i.commissionAmount || 0), 0);
+    const pendingCommission = enriched.filter(i => !i.commissionPaid && i.status !== 'paid').reduce((s, i) => s + (i.commissionAmount || 0), 0);
+
+    res.json({ success: true, installments: enriched, totalCommission, earnedCommission, pendingCommission });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+export default router;

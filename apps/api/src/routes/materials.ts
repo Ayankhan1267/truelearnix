@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { protect as authenticate, authorize } from '../middleware/auth';
 import StudyMaterial from '../models/StudyMaterial';
+import Enrollment from '../models/Enrollment';
 
 const router = Router();
 
@@ -13,8 +14,14 @@ router.get('/', authenticate, async (req, res) => {
     if (type) filter.type = type;
     if (search) filter.title = { $regex: search, $options: 'i' };
     const user = (req as any).user;
-    if (!['admin', 'superadmin', 'manager'].includes(user.role)) {
-      filter.$or = [{ isPublic: true }, { uploadedBy: user._id }];
+    if (!['admin', 'superadmin', 'manager', 'mentor'].includes(user.role)) {
+      const enrollments = await Enrollment.find({ student: user._id }).select('course');
+      const enrolledCourseIds = enrollments.map((e: any) => e.course);
+      filter.$or = [
+        { isPublic: true },
+        { uploadedBy: user._id },
+        { courseId: { $in: enrolledCourseIds } },
+      ];
     }
     const materials = await StudyMaterial.find(filter)
       .populate('uploadedBy', 'name')

@@ -1,0 +1,17 @@
+graph LR
+    subgraph TrulanceApp["Trulance App"]
+        TH[Homepage]
+        TF[Freelancers Listing]
+        TFD["/freelancers/[id]\nProfile"]
+        TP[Projects Listing]
+        TPD["/projects/[id]\nDetail"]
+        TPP[Post a Project]
+        TD[Dashboard]
+        TL[Login]
+        TR[Register]
+    end
+
+    TH --> TF & TP
+    TF --> TFD
+    TP --> TPD
+    TD --> TPP

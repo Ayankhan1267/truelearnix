@@ -65,6 +65,17 @@ export const courseAPI = {
   assignments: (courseId: string) => api.get(`/assignments/course/${courseId}`),
   sessions: (courseId: string) => api.get(`/courses/${courseId}/sessions`),
   courseAssignments: (courseId: string) => api.get(`/courses/${courseId}/assignments`),
+  submitAssignment: (assignmentId: string, formData: FormData) =>
+    api.post(`/assignments/${assignmentId}/submit`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+};
+
+// Materials (Notes/PDFs)
+export const materialAPI = {
+  courseMaterials: (courseId: string, type?: string) =>
+    api.get('/materials', { params: { courseId, ...(type ? { type } : {}) } }),
+  create: (data: any) => api.post('/materials', data),
+  delete: (id: string) => api.delete(`/materials/${id}`),
+  incrementDownload: (id: string) => api.post(`/materials/${id}/download`),
 };
 
 // Payments
@@ -240,6 +251,22 @@ export const mentorAPI = {
   updateProfile: (data: any) => api.put('/mentor/profile', data),
 };
 
+// Manager API
+export const managerAPI = {
+  stats:           ()                             => api.get('/manager/stats'),
+  partners:        (params?: any)                 => api.get('/manager/partners', { params }),
+  partnerDetail:   (id: string)                   => api.get(`/manager/partners/${id}`),
+  leaderboard:     ()                             => api.get('/manager/leaderboard'),
+  sendTip:         (partnerId: string, data: any) => api.post(`/manager/partners/${partnerId}/tips`, data),
+  deleteTip:       (tipId: string)                => api.delete(`/manager/tips/${tipId}`),
+  createGoal:      (partnerId: string, data: any) => api.post(`/manager/partners/${partnerId}/goals`, data),
+  updateGoal:      (goalId: string, data: any)    => api.patch(`/manager/goals/${goalId}`, data),
+  deleteGoal:      (goalId: string)               => api.delete(`/manager/goals/${goalId}`),
+  myTips:          ()                             => api.get('/manager/my-tips'),
+  myGoals:         ()                             => api.get('/manager/my-goals'),
+  emiCommissions:  ()                             => api.get('/manager/emi-commissions'),
+};
+
 // Admin Mentor API
 export const adminMentorAPI = {
   list: (params?: any) => api.get('/admin/mentors', { params }),
@@ -301,6 +328,21 @@ export const checkoutAPI = {
   payEmi: (data: { installmentId: string }) => api.post('/checkout/emi/pay', data),
   verifyEmi: (data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string; installmentId: string }) =>
     api.post('/checkout/emi/verify', data),
+};
+
+// Sales Team
+export const salesAPI = {
+  stats: () => api.get('/sales/stats'),
+  leads: (params?: any) => api.get('/sales/leads', { params }),
+  updateLead: (id: string, data: any) => api.patch(`/sales/leads/${id}`, data),
+  orders: (params?: any) => api.get('/sales/orders', { params }),
+  createOrder: (data: any) => api.post('/sales/orders', data),
+  getOrder: (id: string) => api.get(`/sales/orders/${id}`),
+  verifyPayment: (id: string, data: any) => api.post(`/sales/orders/${id}/verify-payment`, data),
+  generatePaymentLink: (id: string) => api.post(`/sales/orders/${id}/payment-link`),
+  myLink: () => api.get('/sales/link'),
+  packages: () => api.get('/sales/packages'),
+  emiCommissions: () => api.get('/sales/emi-commissions'),
 };
 
 export const phonepeAPI = {

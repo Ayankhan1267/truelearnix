@@ -27,6 +27,7 @@ const navItems = [
     ]
   },
   { label: 'Partners',        href: '/partners',     icon: HeartHandshake,       perm: 'learners' },
+  { label: 'Sales Team',      href: '/sales-team',   icon: TrendingUp,           perm: 'learners' },
   { label: 'Employees',       href: '/employees',    icon: UserPlus,        perm: 'employees' },
   { label: 'Packages',        href: '/packages',     icon: Package,         perm: 'packages' },
   {

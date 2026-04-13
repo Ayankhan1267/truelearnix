@@ -1,0 +1,47 @@
+graph TB
+    subgraph Internet["🌐 Internet / Users"]
+        U1[👨‍🎓 Student / Learner]
+        U2[👨‍🏫 Mentor]
+        U3[🤝 Partner / Affiliate]
+        U4[🛠️ Admin / Superadmin]
+        U5[💼 Freelancer]
+    end
+
+    subgraph Nginx["🔀 Nginx Reverse Proxy"]
+        N1[peptly.in → :3000]
+        N2[admin.peptly.in → :3003]
+        N3[api.peptly.in → :5000]
+        N4[trulance.peptly.in → :3004]
+    end
+
+    subgraph Apps["📦 PM2 Applications"]
+        WEB["🌐 apps/web\nNext.js 14 · Port 3000\ntrulearnix-web"]
+        ADMIN["🛠️ apps/admin\nNext.js 14 · Port 3003\ntrulearnix-admin"]
+        API["⚙️ apps/api\nExpress + TS · Port 5000\ntrulearnix-api"]
+        TRULANCE["💼 apps/trulance\nNext.js 14 · Port 3004\ntrulance"]
+    end
+
+    subgraph Storage["🗄️ Storage & Services"]
+        MONGO[(MongoDB)]
+        REDIS[(Redis Cache)]
+        S3[(AWS S3\nFile Storage)]
+    end
+
+    subgraph External["🔌 External APIs"]
+        RAZORPAY[💳 Razorpay]
+        OPENAI[🤖 OpenAI / Nova]
+        ZOOM[📹 Zoom SDK]
+        WHATSAPP[📱 WhatsApp Meta]
+        EMAIL[📧 Email Service]
+    end
+
+    U1 & U2 & U3 --> N1
+    U4 --> N2
+    U5 --> N4
+    N1 --> WEB
+    N2 --> ADMIN
+    N3 --> API
+    N4 --> TRULANCE
+    WEB & ADMIN & TRULANCE --> N3
+    API --> MONGO & REDIS & S3
+    API --> RAZORPAY & OPENAI & ZOOM & WHATSAPP & EMAIL

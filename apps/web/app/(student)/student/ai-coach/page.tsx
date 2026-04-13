@@ -17,7 +17,7 @@ interface Msg { role: 'user' | 'ai'; content: string; ts: Date }
 export default function AICoachPage() {
   const { user } = useAuthStore()
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'ai', content: `Namaste ${user?.name?.split(' ')[0]}! 🎓 Main tumhara personal AI Coach hoon. Main tumhari learning journey mein madad karne ke liye yahan hoon. Kya poochhna chahte ho?`, ts: new Date() }
+    { role: 'ai', content: `Hello ${user?.name?.split(' ')[0]}! 🎓 I'm your personal AI Coach. I'm here to help you throughout your learning journey. What would you like to ask?`, ts: new Date() }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,11 +33,11 @@ export default function AICoachPage() {
     setLoading(true)
     try {
       const { data } = await api.post('/users/ai-coach', { message: text })
-      setMessages(prev => [...prev, { role: 'ai', content: data.reply || 'Samajh gaya! Yeh feature abhi implement ho raha hai — jald hi available hoga.', ts: new Date() }])
+      setMessages(prev => [...prev, { role: 'ai', content: data.reply || 'Got it! This feature is being implemented — will be available soon.', ts: new Date() }])
     } catch {
       setMessages(prev => [...prev, {
         role: 'ai',
-        content: 'AI Coach abhi configure ho raha hai. Jald hi GPT-4o se personalized guidance milegi! Abhi ke liye community mein apna sawaal poochh sakte ho.',
+        content: 'AI Coach is being configured. GPT-4o powered personalized guidance coming soon! For now, ask your question in the community.',
         ts: new Date()
       }])
     } finally { setLoading(false) }
@@ -108,7 +108,7 @@ export default function AICoachPage() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-          placeholder="Kuch bhi poochho — courses, career, study plan..."
+          placeholder="Ask anything — courses, career, study plan..."
           className="flex-1 bg-dark-700 border border-white/10 rounded-2xl px-5 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 text-sm"
         />
         <button onClick={() => sendMessage()} disabled={!input.trim() || loading}

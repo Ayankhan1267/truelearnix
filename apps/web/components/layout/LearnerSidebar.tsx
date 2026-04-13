@@ -7,7 +7,7 @@ import {
   FileQuestion, FileText, User, LogOut, X, Menu, Flame,
   Briefcase, Star, FolderGit2, ChevronRight, Zap, Heart,
   Bell, ArrowUpCircle, Globe, HeartHandshake, TrendingUp, Lock,
-  ExternalLink
+  ExternalLink, CreditCard
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
 import { authAPI, userAPI } from '@/lib/api'
@@ -33,6 +33,7 @@ const TOOLS_NAV = [
   { href: '/student/brand',         icon: Star,           label: 'Personal Brand'},
   { href: '/student/projects',      icon: FolderGit2,     label: 'Projects'    },
   { href: '/student/freelance',     icon: Briefcase,      label: 'Freelance'   },
+  { href: '/student/emi',           icon: CreditCard,     label: 'My EMI'      },
   { href: '/student/profile',       icon: User,           label: 'Profile'     },
 ]
 
@@ -76,6 +77,7 @@ function SidebarInner({ onClose }: { onClose?: () => void }) {
 
   const tier = (user as any)?.packageTier || 'free'
   const tc = TIER_CONFIG[tier] || TIER_CONFIG.free
+  const isLocked = tier === 'free' && !(user as any)?.isAffiliate && !((user as any)?.enrollmentCount > 0)
 
   const { data: annData } = useQuery({
     queryKey: ['announcements'],
@@ -172,7 +174,7 @@ function SidebarInner({ onClose }: { onClose?: () => void }) {
 
       {/* ── Nav scrollable area ── */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-        {tier === 'free' && (
+        {isLocked && (
           <Link href="/packages" onClick={close}
             className="flex items-center gap-2 mx-0 mb-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition-colors">
             <Lock className="w-3 h-3 flex-shrink-0" />
@@ -181,7 +183,7 @@ function SidebarInner({ onClose }: { onClose?: () => void }) {
         )}
         <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 py-1.5">Learn</p>
         {MAIN_NAV.map(item => (
-          tier === 'free' ? (
+          isLocked ? (
             <div key={item.href}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 cursor-not-allowed select-none">
               <item.icon className="w-4 h-4 flex-shrink-0 opacity-40" />
@@ -202,7 +204,7 @@ function SidebarInner({ onClose }: { onClose?: () => void }) {
         <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 py-1.5 mt-2">Tools</p>
         {TOOLS_NAV.map(item => {
           const freeAllowed = item.href.startsWith('/student/profile') || item.href.startsWith('/student/upgrade')
-          if (tier === 'free' && !freeAllowed) {
+          if (isLocked && !freeAllowed) {
             return (
               <div key={item.href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 cursor-not-allowed select-none">
@@ -217,7 +219,7 @@ function SidebarInner({ onClose }: { onClose?: () => void }) {
 
         {/* Earn & Grow (affiliate) */}
         <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 py-1.5 mt-2">Earn</p>
-        {tier === 'free' ? (
+        {isLocked ? (
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 cursor-not-allowed select-none">
             <TrendingUp className="w-4 h-4 flex-shrink-0 opacity-40" />
             <span className="flex-1 opacity-40">Earn & Grow</span>

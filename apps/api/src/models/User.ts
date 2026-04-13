@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export type UserRole = 'superadmin' | 'admin' | 'manager' | 'mentor' | 'student';
+export type UserRole = 'superadmin' | 'admin' | 'manager' | 'mentor' | 'student' | 'salesperson';
 export type EmployeeDepartment = 'hr' | 'sales' | 'marketing' | 'content' | 'finance' | 'operations' | 'support' | 'tech' | 'general';
 export type PackageTier = 'free' | 'starter' | 'pro' | 'elite' | 'supreme';
 
@@ -59,6 +59,7 @@ export interface IUser extends Document {
   lastLogin?: Date;
   loginCount: number;
   packageSuspended: boolean;
+  promoDiscountPercent: number;
   favoriteCourses: mongoose.Types.ObjectId[];
   kyc?: {
     pan?: string; panName?: string; panVerified?: boolean;
@@ -74,7 +75,11 @@ export interface IUser extends Document {
   permissions?: string[];
   managerName?: string;
   managerPhone?: string;
+  managerId?: mongoose.Types.ObjectId;
   sponsorCode?: string;
+  age?: number;
+  country?: string;
+  state?: string;
   mentorStatus?: 'pending' | 'approved' | 'rejected';
   mentorApplication?: {
     experience?: string;
@@ -97,7 +102,7 @@ const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, trim: true },
   password: { type: String, required: true, minlength: 6, select: false },
-  role: { type: String, enum: ['superadmin', 'admin', 'manager', 'mentor', 'student'], default: 'student' },
+  role: { type: String, enum: ['superadmin', 'admin', 'manager', 'mentor', 'student', 'salesperson'], default: 'student' },
   avatar: { type: String },
   isVerified: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
@@ -135,6 +140,7 @@ const UserSchema = new Schema<IUser>({
   lastLogin: Date,
   loginCount: { type: Number, default: 0 },
   packageSuspended: { type: Boolean, default: false },
+  promoDiscountPercent: { type: Number, default: 0, min: 0, max: 100 },
   favoriteCourses: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
   kyc: {
     pan: String, panName: String, panVerified: { type: Boolean, default: false },
@@ -149,7 +155,11 @@ const UserSchema = new Schema<IUser>({
   permissions: [{ type: String }],
   managerName: String,
   managerPhone: String,
+  managerId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   sponsorCode: String,
+  age: { type: Number },
+  country: { type: String, default: 'India' },
+  state: { type: String },
   mentorStatus: { type: String, enum: ['pending', 'approved', 'rejected'] },
   mentorApplication: {
     experience: String,
@@ -180,16 +190,16 @@ UserSchema.index({ mentorStatus: 1, role: 1 });
 
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  (this as any).password = await bcrypt.hash((this as any).password, 12);
   next();
 });
 
 UserSchema.pre('save', function (next) {
-  if (!this.affiliateCode) {
+  if (!(this as any).affiliateCode) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = 'TL';
     for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    this.affiliateCode = code;
+    (this as any).affiliateCode = code;
   }
   next();
 });

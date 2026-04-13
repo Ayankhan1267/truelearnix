@@ -1,95 +1,155 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { BookOpen, Eye, EyeOff, Loader2, Gift, Zap } from 'lucide-react'
-import Logo from '@/components/ui/Logo'
+import {
+  User, Mail, Phone, Calendar, MapPin, Globe, Loader2,
+  CheckCircle, ChevronRight, Sparkles, Shield, ArrowRight
+} from 'lucide-react'
 import { authAPI } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 
+const INDIAN_STATES = [
+  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat',
+  'Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh',
+  'Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab',
+  'Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh',
+  'Uttarakhand','West Bengal','Delhi','Jammu & Kashmir','Ladakh',
+  'Chandigarh','Puducherry','Other',
+]
+
 const schema = z.object({
-  name: z.string().min(2, 'Name too short'),
-  email: z.string().email('Invalid email'),
-  phone: z.string().min(10, 'Invalid phone').optional().or(z.literal('')),
-  password: z.string().min(6, 'Min 6 characters'),
-  confirmPassword: z.string(),
-  role: z.literal('student'),
-}).refine(d => d.password === d.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] })
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Enter a valid email address'),
+  phone: z.string().min(10, 'Enter a valid 10-digit phone number').max(15),
+  age: z.string().min(1, 'Age is required'),
+  country: z.string().min(1, 'Country is required'),
+  state: z.string().min(1, 'State is required'),
+})
 
 type FormData = z.infer<typeof schema>
 
-export default function RegisterPage() {
-  const [showPw, setShowPw] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [otp, setOtp] = useState('')
-  const [verifying, setVerifying] = useState(false)
+function Field({ label, icon: Icon, error, children }: { label: string; icon: any; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">{label}</label>
+      <div className="relative">
+        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10" />
+        {children}
+      </div>
+      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+    </div>
+  )
+}
+
+function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { setAuth } = useAuthStore()
   const ref = searchParams.get('ref') || ''
-  const packageParam = searchParams.get('package') || ''
+  const packageId = searchParams.get('packageId') || ''
+  const promo = searchParams.get('promo') || ''
+  const next = searchParams.get('next') || ''
 
-  const PACKAGE_INFO: Record<string, { name: string; price: string; commission: string; color: string }> = {
-    starter: { name: 'Starter', price: '₹4,999', commission: '10%', color: 'border-gray-500/50 bg-gray-500/10' },
-    pro: { name: 'Pro', price: '₹9,999', commission: '15%', color: 'border-blue-500/50 bg-blue-500/10' },
-    elite: { name: 'Elite', price: '₹19,999', commission: '22%', color: 'border-violet-500/50 bg-violet-500/10' },
-    supreme: { name: 'Supreme', price: '₹29,999', commission: '30%', color: 'border-yellow-500/50 bg-yellow-500/10' },
-  }
+  const [step, setStep] = useState<'form' | 'otp' | 'success'>('form')
+  const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState('')
+  const [otp, setOtp] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [country, setCountry] = useState('India')
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { role: 'student' }
+    defaultValues: { country: 'India' }
   })
 
   const onSubmit = async (data: FormData) => {
+    setLoading(true)
     try {
-      setLoading(true)
-      const res = await authAPI.register({ ...data, role: 'student', referralCode: ref })
-      setUserId(res.data.userId)
-      toast.success('OTP sent to your email!')
+      const res = await authAPI.register({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        age: data.age,
+        country: data.country,
+        state: data.state,
+        role: 'student',
+        referralCode: ref || promo,
+      })
+      setUserId(res.data.tempId)
+      setStep('otp')
+      if (res.data._devOtp) toast.success(`OTP: ${res.data._devOtp}`, { duration: 60000 })
+      else toast.success('OTP sent to your WhatsApp!')
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Registration failed')
+      toast.error(err.response?.data?.message || 'Registration failed. Try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleVerifyOTP = async () => {
+    if (otp.length < 6) return
+    setVerifying(true)
     try {
-      setVerifying(true)
-      await authAPI.verifyOTP({ userId, otp })
-      toast.success('Email verified! Please login.')
-      router.push('/login')
+      const res = await authAPI.verifyOTP({ userId, otp })
+      // Auto-login
+      setAuth(res.data.user, res.data.accessToken, res.data.refreshToken)
+      toast.success('Account verified! Redirecting...')
+      // Redirect to checkout if package was selected, else dashboard
+      if (next) {
+        router.push(next)
+      } else if (packageId) {
+        const checkoutUrl = `/checkout?type=package&packageId=${packageId}${promo ? `&promo=${promo}` : ''}`
+        router.push(checkoutUrl)
+      } else {
+        router.push('/student/dashboard')
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Invalid OTP')
+      toast.error(err.response?.data?.message || 'Invalid OTP. Try again.')
     } finally {
       setVerifying(false)
     }
   }
 
-  if (userId) {
+  // OTP Screen
+  if (step === 'otp') {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📧</span>
+            <div className="w-16 h-16 bg-violet-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-violet-500/30">
+              <Mail className="w-7 h-7 text-violet-400" />
             </div>
             <h1 className="text-2xl font-bold text-white">Check your email</h1>
-            <p className="text-gray-400 mt-2">We sent a 6-digit OTP to your email</p>
+            <p className="text-gray-400 text-sm mt-2">We sent a 6-digit OTP to your email address</p>
           </div>
-          <div className="card space-y-4">
-            <input value={otp} onChange={e => setOtp(e.target.value)} placeholder="Enter 6-digit OTP"
-              className="input text-center text-2xl tracking-widest" maxLength={6} />
-            <button onClick={handleVerifyOTP} disabled={verifying || otp.length < 6} className="btn-primary w-full flex items-center justify-center gap-2">
-              {verifying ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</> : 'Verify Email'}
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+            <input
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+              onKeyDown={e => e.key === 'Enter' && handleVerifyOTP()}
+              placeholder="_ _ _ _ _ _"
+              className="w-full text-center text-3xl font-bold tracking-[0.5em] bg-white/5 border border-white/10 rounded-xl py-4 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors"
+              maxLength={6}
+            />
+            <button
+              onClick={handleVerifyOTP}
+              disabled={verifying || otp.length < 6}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {verifying ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</> : <>Verify & Continue <ArrowRight className="w-4 h-4" /></>}
             </button>
-            <button onClick={() => authAPI.resendOTP({ userId }).then(() => toast.success('OTP resent!'))}
-              className="text-sm text-primary-400 w-full text-center hover:text-primary-300">
-              Resend OTP
+            <button
+              onClick={() => authAPI.resendOTP({ userId }).then(r => { if (r.data._devOtp) toast.success(`OTP: ${r.data._devOtp}`, { duration: 60000 }); else toast.success('OTP resent!') })}
+              className="text-sm text-gray-500 hover:text-violet-400 w-full text-center transition-colors"
+            >
+              Didn't receive? Resend OTP
             </button>
           </div>
         </div>
@@ -97,85 +157,123 @@ export default function RegisterPage() {
     )
   }
 
+  // Registration Form
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center">
-            <Logo size="lg" href="/" />
-          </Link>
-          <h1 className="text-2xl font-bold text-white mt-4">Create your account</h1>
-          <p className="text-gray-400 mt-1">Start your learning journey today</p>
+    <div className="min-h-screen bg-[#0a0a14] flex">
+      {/* Left panel - desktop only */}
+      <div className="hidden lg:flex flex-col justify-center w-5/12 bg-gradient-to-br from-violet-900/40 via-purple-900/30 to-indigo-900/40 px-12 border-r border-white/5">
+        <div className="mb-10">
+          <Image src="/logo.png" alt="TruLearnix" width={160} height={40} className="object-contain mb-2" priority />
+          <p className="text-gray-400 text-sm mt-1">Learn · Earn · Grow</p>
         </div>
+        <h2 className="text-3xl font-bold text-white leading-tight mb-4">
+          Your path to<br /><span className="text-violet-400">financial freedom</span><br />starts here
+        </h2>
+        <p className="text-gray-400 leading-relaxed mb-8">
+          Join thousands of learners who are building skills and earning income through our partner program.
+        </p>
+        <div className="space-y-3">
+          {[
+            { icon: '🎓', text: 'Access 50+ premium courses' },
+            { icon: '💰', text: 'Earn up to 30% commission per referral' },
+            { icon: '🏆', text: 'Get certified and showcase your skills' },
+            { icon: '🚀', text: 'Build your own business from home' },
+          ].map(({ icon, text }) => (
+            <div key={text} className="flex items-center gap-3">
+              <span className="text-xl">{icon}</span>
+              <p className="text-gray-300 text-sm">{text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
-        {packageParam && PACKAGE_INFO[packageParam] && (
-          <div className={`rounded-xl border p-4 mb-4 flex items-center gap-3 ${PACKAGE_INFO[packageParam].color}`}>
-            <div className="w-10 h-10 bg-primary-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Zap className="w-5 h-5 text-primary-400" />
-            </div>
-            <div>
-              <p className="text-white font-semibold text-sm">You're signing up for <span className="text-primary-400">{PACKAGE_INFO[packageParam].name} Package</span></p>
-              <p className="text-gray-400 text-xs">{PACKAGE_INFO[packageParam].price} • Earn {PACKAGE_INFO[packageParam].commission} L1 income share • Unlock Earn Panel</p>
-            </div>
+      {/* Right panel - form */}
+      <div className="flex-1 flex items-start justify-center px-4 py-8 overflow-y-auto">
+        <div className="w-full max-w-md">
+          {/* Mobile header */}
+          <div className="lg:hidden flex justify-center mb-6">
+            <Image src="/logo.png" alt="TruLearnix" width={140} height={36} className="object-contain" priority />
           </div>
-        )}
 
-        {ref && !packageParam && (
-          <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 mb-4 flex items-center gap-3">
-            <Gift className="w-5 h-5 text-green-400 flex-shrink-0" />
-            <p className="text-green-400 text-sm font-medium">Invite code <span className="font-bold">{ref}</span> applied — your sponsor earns when you upgrade!</p>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-white">Create your account</h1>
+            <p className="text-gray-400 text-sm mt-1">Fill in your details to get started</p>
           </div>
-        )}
 
-        <div className="card">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
-              <input {...register('name')} placeholder="Your full name" className="input" />
-              {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-              <input {...register('email')} type="email" placeholder="you@example.com" className="input" />
-              {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Phone (optional)</label>
-              <input {...register('phone')} placeholder="+91 98765 43210" className="input" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-              <div className="relative">
-                <input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="Min 6 characters" className="input pr-10" />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+          {/* Referral banner */}
+          {(ref || promo) && (
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/25 rounded-xl px-4 py-3 mb-5">
+              <Sparkles className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-green-400 text-xs font-semibold">Referral code applied: <span className="font-bold">{ref || promo}</span></p>
+                <p className="text-green-400/70 text-xs">You'll get a discount on checkout</p>
               </div>
-              {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Field label="Full Name" icon={User} error={errors.name?.message}>
+              <input {...register('name')} placeholder="Rahul Kumar" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors text-sm" />
+            </Field>
+
+            <Field label="Email Address" icon={Mail} error={errors.email?.message}>
+              <input {...register('email')} type="email" placeholder="you@example.com" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors text-sm" />
+            </Field>
+
+            <Field label="Mobile Number" icon={Phone} error={errors.phone?.message}>
+              <input {...register('phone')} type="tel" placeholder="9876543210" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors text-sm" />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Age" icon={Calendar} error={errors.age?.message}>
+                <input {...register('age')} type="number" min="15" max="80" placeholder="25" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors text-sm" />
+              </Field>
+
+              <Field label="Country" icon={Globe} error={errors.country?.message}>
+                <select {...register('country')} onChange={e => { setCountry(e.target.value) }} className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-violet-500 transition-colors text-sm appearance-none cursor-pointer">
+                  <option value="India">India</option>
+                  <option value="Other">Other</option>
+                </select>
+              </Field>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
-              <input {...register('confirmPassword')} type="password" placeholder="Repeat password" className="input" />
-              {errors.confirmPassword && <p className="text-red-400 text-xs mt-1">{errors.confirmPassword.message}</p>}
+            <Field label="State" icon={MapPin} error={errors.state?.message}>
+              {country === 'India' ? (
+                <select {...register('state')} className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-violet-500 transition-colors text-sm appearance-none cursor-pointer">
+                  <option value="">Select your state</option>
+                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : (
+                <input {...register('state')} placeholder="Enter your state/province" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-colors text-sm" />
+              )}
+            </Field>
+
+            <div className="pt-1">
+              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : <>Create Account & Get OTP <ChevronRight className="w-4 h-4" /></>}
+              </button>
             </div>
 
-            {ref && <input type="hidden" value={ref} />}
+            <div className="flex items-center gap-2 py-1">
+              <Shield className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
+              <p className="text-gray-600 text-xs">Your information is secure and will never be shared</p>
+            </div>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
-              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : 'Create Account'}
-            </button>
+            <p className="text-center text-gray-500 text-sm">
+              Already have an account?{' '}
+              <Link href="/login" className="text-violet-400 hover:text-violet-300 font-semibold transition-colors">Sign in</Link>
+            </p>
           </form>
-
-          <p className="text-center text-gray-400 text-sm mt-4">
-            Already have an account?{' '}
-            <Link href="/login" className="text-primary-400 hover:text-primary-300 font-medium">Sign in</Link>
-          </p>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   )
 }
