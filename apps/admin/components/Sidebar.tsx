@@ -13,7 +13,7 @@ import {
   Trophy, MousePointerClick, TrendingUp, Layers, PanelTop,
   Briefcase, UserCheck, UserX, GraduationCap, MessageSquare, ShoppingBag, UserPlus,
   ClipboardList, HeartHandshake, CreditCard, ShieldCheck, Award, Megaphone, IndianRupee,
-  Calendar, Flag, Radio,
+  Calendar, Flag, Radio, Settings,
 } from 'lucide-react'
 
 // permission key matches what's stored in localStorage adminPermissions
@@ -93,6 +93,7 @@ const navItems = [
   { label: 'KYC Review',      href: '/kyc',           icon: ShieldCheck, perm: 'kyc' },
   { label: 'HR Team',         href: '/hr',            icon: UserCog,    perm: 'hr' },
   { label: 'Security',        href: '/security',     icon: Shield,     perm: 'security' },
+  { label: 'Settings',        href: '/settings',     icon: Settings,   perm: 'superadmin' },
 ]
 
 export default function Sidebar({ session }: { session: UserSession }) {

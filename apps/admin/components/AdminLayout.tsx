@@ -19,6 +19,7 @@ const pageTitles: Record<string, string> = {
   '/support': 'Support',
   '/notifications': 'Notifications',
   '/content': 'Website Content',
+  '/settings': 'Platform Settings',
 }
 
 export interface UserSession {
@@ -41,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (pathname !== '/login') router.replace('/login')
       return
     }
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in/api'}/auth/me`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com/api'}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())

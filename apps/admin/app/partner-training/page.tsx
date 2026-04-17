@@ -50,7 +50,7 @@ function VideoUploader({ value, onChange }: { value: string; onChange: (url: str
       fd.append('video', file)
       // Use XMLHttpRequest for progress tracking
       const token = localStorage.getItem('adminToken')
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in/api'
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com/api'
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
         xhr.open('POST', `${apiBase}/upload/video`)

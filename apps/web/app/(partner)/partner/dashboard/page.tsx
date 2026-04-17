@@ -706,7 +706,7 @@ export default function PartnerDashboard() {
     setTimeout(() => setCopied(null), 2000)
   }
   const copyLink = () => {
-    navigator.clipboard.writeText(data?.referralLink || `https://peptly.in?ref=${user?.affiliateCode}`)
+    navigator.clipboard.writeText(data?.referralLink || `https://trulearnix.com?ref=${user?.affiliateCode}`)
     setCopied('link')
     toast.success('Link copied!')
     setTimeout(() => setCopied(null), 2000)

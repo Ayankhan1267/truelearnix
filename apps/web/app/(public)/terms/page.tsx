@@ -146,7 +146,7 @@ export default function TermsPage() {
             These Terms of Service ("Terms") constitute a legally binding agreement between you ("User") and{' '}
             <span className="text-white font-semibold">TRULEARNIX DIGITAL SKILLS LLP</span> (LLP No. ACR-4252),
             registered at 891/E 22, Zakir Nagar, Jamia Nagar, New Delhi – 110025, India.
-            By accessing or using our platform at <span className="text-indigo-300">peptly.in</span>, you agree to be
+            By accessing or using our platform at <span className="text-indigo-300">trulearnix.com</span>, you agree to be
             bound by these Terms and our Privacy Policy.
           </p>
         </div>

@@ -552,10 +552,10 @@ router.get('/platform-settings', async (_req, res) => {
 });
 router.put('/platform-settings', async (req, res) => {
   try {
-    const { tdsRate, gstRate, minWithdrawalAmount, webinarLink, webinarTitle, webinarDate, presentationVideoLink } = req.body;
+    const { tdsRate, gstRate, minWithdrawalAmount, webinarLink, webinarTitle, webinarDate, presentationVideoLink, maintenanceMode, trulanceMaintenance, maintenanceMessage } = req.body;
     let settings = await PlatformSettings.findOne();
     if (!settings) {
-      settings = await PlatformSettings.create({ tdsRate, gstRate, minWithdrawalAmount, webinarLink, webinarTitle, webinarDate, presentationVideoLink });
+      settings = await PlatformSettings.create({ tdsRate, gstRate, minWithdrawalAmount, webinarLink, webinarTitle, webinarDate, presentationVideoLink, maintenanceMode, trulanceMaintenance, maintenanceMessage });
     } else {
       if (tdsRate !== undefined) settings.tdsRate = tdsRate;
       if (gstRate !== undefined) settings.gstRate = gstRate;
@@ -564,6 +564,9 @@ router.put('/platform-settings', async (req, res) => {
       if (webinarTitle !== undefined) settings.webinarTitle = webinarTitle;
       if (webinarDate !== undefined) settings.webinarDate = webinarDate;
       if (presentationVideoLink !== undefined) settings.presentationVideoLink = presentationVideoLink;
+      if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
+      if (trulanceMaintenance !== undefined) settings.trulanceMaintenance = trulanceMaintenance;
+      if (maintenanceMessage !== undefined) settings.maintenanceMessage = maintenanceMessage;
       await settings.save();
     }
     res.json({ success: true, settings });

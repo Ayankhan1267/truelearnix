@@ -120,7 +120,7 @@ function LoginForm() {
                 <Link href="/register" className="text-teal-400 hover:underline font-semibold">Create one free</Link>
               </p>
               <p className="text-center text-xs text-gray-700 mt-2">
-                Same as <a href="https://peptly.in" className="text-teal-400 hover:underline">peptly.in</a> credentials
+                Same as <a href="https://trulearnix.com" className="text-teal-400 hover:underline">trulearnix.com</a> credentials
               </p>
             </>
           ) : (

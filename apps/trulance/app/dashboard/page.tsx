@@ -144,7 +144,7 @@ export default function DashboardPage() {
                     <p className="font-semibold text-white text-sm">Back to TruLearnix</p>
                     <p className="text-xs text-gray-600">Continue learning and earning</p>
                   </div>
-                  <a href="https://peptly.in/student/dashboard" className="btn-secondary text-xs py-1.5 px-3">Visit</a>
+                  <a href="https://trulearnix.com/student/dashboard" className="btn-secondary text-xs py-1.5 px-3">Visit</a>
                 </div>
               </div>
 

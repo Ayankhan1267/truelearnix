@@ -37,7 +37,7 @@ export default function PersonalBrandPage() {
 
   const skills: string[] = profile?.expertise || (user as any)?.expertise || []
   const portfolioSlug = (profile?.name || user?.name || 'user').toLowerCase().replace(/\s+/g, '-')
-  const portfolioUrl = `peptly.in/portfolio/${portfolioSlug}`
+  const portfolioUrl = `trulearnix.com/portfolio/${portfolioSlug}`
 
   // Completeness items
   const items = [

@@ -649,7 +649,7 @@ export default function MentorsPage() {
             <div className="modal-body space-y-3">
               <p className="text-sm text-gray-400">Set new admin panel password for <span className="text-white font-semibold">{resetModal.name}</span></p>
               <p className="text-xs text-amber-400 bg-amber-500/10 px-3 py-2 rounded-xl border border-amber-500/20">
-                Login URL: <span className="font-mono">admin.peptly.in</span> · Email: <span className="font-mono">{resetModal.email}</span>
+                Login URL: <span className="font-mono">admin.trulearnix.com</span> · Email: <span className="font-mono">{resetModal.email}</span>
               </p>
               <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
                 placeholder="New password (min 6 chars)"

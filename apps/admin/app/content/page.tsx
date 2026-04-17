@@ -190,7 +190,7 @@ const DEFAULT_SETTINGS = {
   tagline: "India's #1 Live Learning + Earning Platform",
   logoUrl: '',
   faviconUrl: '',
-  contactEmail: 'support@peptly.in',
+  contactEmail: 'support@trulearnix.com',
   whatsapp: '',
   instagram: '',
   youtube: '',
@@ -1660,7 +1660,7 @@ function SettingsTab() {
         {[
           ['platformName', 'Platform Name', 'TruLearnix'],
           ['tagline', 'Tagline', "India's #1 Live Learning + Earning Platform"],
-          ['contactEmail', 'Contact Email', 'support@peptly.in'],
+          ['contactEmail', 'Contact Email', 'support@trulearnix.com'],
           ['whatsapp', 'WhatsApp Number', '+91 98765 43210'],
           ['footerCopyright', 'Footer Copyright', '© 2025 TruLearnix'],
         ].map(([k, l, ph]) => (
@@ -1724,7 +1724,7 @@ export default function ContentPage() {
           </div>
           <div>
             <h1 className="font-bold text-white">Website Content Manager</h1>
-            <p className="text-xs text-gray-400">Edit all content, images and videos shown on peptly.in</p>
+            <p className="text-xs text-gray-400">Edit all content, images and videos shown on trulearnix.com</p>
           </div>
         </div>
 

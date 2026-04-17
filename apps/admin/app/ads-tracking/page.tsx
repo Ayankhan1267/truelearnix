@@ -7,7 +7,7 @@ export default function AdsTrackingPage() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : ''
-  const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in/api'
+  const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com/api'
 
   useEffect(() => {
     fetch(`${API}/crm/leads?limit=100`, { headers: { Authorization: `Bearer ${token}` } })
@@ -97,7 +97,7 @@ export default function AdsTrackingPage() {
           <h2 className="text-lg font-bold text-white mb-3">UTM Tracking Setup</h2>
           <p className="text-sm text-gray-400 mb-4">Add these parameters to your ad URLs to track performance:</p>
           <div className="bg-slate-800 rounded-xl p-4 font-mono text-xs text-green-400 break-all">
-            https://peptly.in?ref=YOURCODE<br />
+            https://trulearnix.com?ref=YOURCODE<br />
             &utm_source=meta_ads<br />
             &utm_medium=paid<br />
             &utm_campaign=digital_marketing_jan

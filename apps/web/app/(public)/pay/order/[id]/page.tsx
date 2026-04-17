@@ -184,7 +184,7 @@ function PayOrderInner() {
             <p className="text-sm font-semibold text-green-800 mb-2">What happens next?</p>
             <ul className="space-y-1.5 text-xs text-green-700">
               <li className="flex items-start gap-2"><CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Your TruLearnix account is now active</span></li>
-              <li className="flex items-start gap-2"><CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Login at <strong>peptly.in</strong> with your registered email</span></li>
+              <li className="flex items-start gap-2"><CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Login at <strong>trulearnix.com</strong> with your registered email</span></li>
               <li className="flex items-start gap-2"><CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Welcome email with login details has been sent</span></li>
               <li className="flex items-start gap-2"><CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>Contact support if you face any issues</span></li>
             </ul>
@@ -450,7 +450,7 @@ function PayOrderInner() {
           </div>
         </div>
 
-        <p className="text-center text-gray-500 text-xs">© {new Date().getFullYear()} TruLearnix · peptly.in</p>
+        <p className="text-center text-gray-500 text-xs">© {new Date().getFullYear()} TruLearnix · trulearnix.com</p>
       </div>
     </div>
   )

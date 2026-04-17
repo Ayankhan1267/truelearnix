@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 
-const API = (process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in/api').replace(/\/api$/, '/api')
+const API = (process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com/api').replace(/\/api$/, '/api')
 
 interface WebinarInfo {
   _id: string

@@ -179,6 +179,19 @@ app.use('/api/sales', salesRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/announcements', announcementsRouter);
 
+// Public maintenance status — no auth required (used by web + trulancer middleware)
+app.get('/api/public/maintenance', async (_req, res) => {
+  try {
+    const PlatformSettings = (await import('./models/PlatformSettings')).default;
+    const settings = await PlatformSettings.findOne().select('maintenanceMode trulanceMaintenance maintenanceMessage').lean();
+    res.json({
+      maintenanceMode: settings?.maintenanceMode ?? false,
+      trulanceMaintenance: settings?.trulanceMaintenance ?? false,
+      message: settings?.maintenanceMessage ?? 'We are performing scheduled maintenance. We will be back shortly.',
+    });
+  } catch { res.json({ maintenanceMode: false, trulanceMaintenance: false, message: '' }); }
+});
+
 // Health
 app.get('/health', (_, res) => res.json({ status: 'ok', service: 'TureLearnix API', version: '2.1' }));
 

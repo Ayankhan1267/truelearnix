@@ -8,6 +8,9 @@ export interface IPlatformSettings extends Document {
   webinarTitle?: string;
   webinarDate?: string;
   presentationVideoLink?: string;
+  maintenanceMode: boolean;
+  trulanceMaintenance: boolean;
+  maintenanceMessage?: string;
   updatedAt: Date;
 }
 
@@ -19,6 +22,9 @@ const PlatformSettingsSchema = new Schema<IPlatformSettings>({
   webinarTitle: { type: String, default: '' },
   webinarDate: { type: String, default: '' },
   presentationVideoLink: { type: String, default: '' },
+  maintenanceMode: { type: Boolean, default: false },
+  trulanceMaintenance: { type: Boolean, default: false },
+  maintenanceMessage: { type: String, default: 'We are performing scheduled maintenance. We will be back shortly.' },
 }, { timestamps: true });
 
 export default mongoose.model<IPlatformSettings>('PlatformSettings', PlatformSettingsSchema);

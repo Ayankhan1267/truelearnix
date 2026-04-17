@@ -227,10 +227,10 @@ function BrandDrawer({ learnerId, onClose }: { learnerId: string; onClose: () =>
                 <h3 className="font-bold text-white text-sm mb-2 flex items-center gap-2">
                   <Globe className="w-3.5 h-3.5 text-green-400" /> Portfolio URL
                 </h3>
-                <a href={`https://peptly.in/portfolio/${u.name.toLowerCase().replace(/\s+/g, '-')}`}
+                <a href={`https://trulearnix.com/portfolio/${u.name.toLowerCase().replace(/\s+/g, '-')}`}
                   target="_blank" rel="noopener noreferrer"
                   className="text-sm text-green-400 hover:underline break-all">
-                  peptly.in/portfolio/{u.name.toLowerCase().replace(/\s+/g, '-')}
+                  trulearnix.com/portfolio/{u.name.toLowerCase().replace(/\s+/g, '-')}
                 </a>
               </div>
             )}

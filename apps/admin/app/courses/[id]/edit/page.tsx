@@ -34,7 +34,7 @@ function UploadButton({ onUrl, accept, label }: { onUrl: (url: string) => void; 
       const fd = new FormData()
       const isVideo = file.type.startsWith('video/')
       fd.append(isVideo ? 'video' : 'image', file)
-      const endpoint = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in/api'}/upload/${isVideo ? 'video' : 'image'}`
+      const endpoint = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com/api'}/upload/${isVideo ? 'video' : 'image'}`
       const token = Cookies.get('adminToken') || localStorage.getItem('adminToken')
       const res = await axios.post(endpoint, fd, { headers: { Authorization: `Bearer ${token}` } })
       onUrl(res.data.url)

@@ -6,7 +6,7 @@ import AdminLayout from '@/components/AdminLayout'
 import { Download, Video, Search, RefreshCw, Calendar, Clock, User, BookOpen, PlayCircle, FileVideo } from 'lucide-react'
 import { format } from 'date-fns'
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in').replace(/\/api$/, '')
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com').replace(/\/api$/, '')
 
 export default function RecordingsPage() {
   const [search, setSearch] = useState('')

@@ -117,7 +117,7 @@ export default function NewOrderPage() {
     <div class="amount">₹${totalAmount.toLocaleString('en-IN')}</div>
     ${paymentType === 'token' ? `<div style="font-size:13px;color:#666;margin-top:4px">Full Package: ₹${selectedPackage?.price?.toLocaleString('en-IN')}</div>` : ''}
     </div>
-    <div class="footer">TruLearnix — Skill Up. Earn Up. | support@peptly.in</div>
+    <div class="footer">TruLearnix — Skill Up. Earn Up. | support@trulearnix.com</div>
     </body></html>`
     const w = window.open('', '_blank')
     if (w) { w.document.write(html); w.document.close(); w.print() }

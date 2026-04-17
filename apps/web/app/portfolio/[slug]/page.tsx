@@ -75,9 +75,9 @@ export default function PortfolioPage() {
                     <Linkedin className="w-3.5 h-3.5" /> LinkedIn
                   </a>
                 )}
-                <a href="https://peptly.in" target="_blank" rel="noopener noreferrer"
+                <a href="https://trulearnix.com" target="_blank" rel="noopener noreferrer"
                   className="text-xs text-violet-400 hover:underline flex items-center gap-1">
-                  <Globe className="w-3 h-3" /> peptly.in
+                  <Globe className="w-3 h-3" /> trulearnix.com
                 </a>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function PortfolioPage() {
         {/* CTA */}
         <div className="text-center py-8 rounded-2xl" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
           <p className="text-gray-400 text-sm mb-3">Portfolio powered by</p>
-          <a href="https://peptly.in" target="_blank" rel="noopener noreferrer"
+          <a href="https://trulearnix.com" target="_blank" rel="noopener noreferrer"
             className="text-xl font-black text-violet-400 hover:text-violet-300 transition-colors">TruLearnix</a>
           <p className="text-gray-600 text-xs mt-1">India's leading digital skills platform</p>
         </div>

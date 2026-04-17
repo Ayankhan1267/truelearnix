@@ -84,7 +84,7 @@ export default function PartnerSidebar() {
 
         {/* Quick links */}
         <div className="px-4 py-3 border-b border-dark-700 flex gap-2">
-          <Link href="https://peptly.in" target="_blank" className="flex items-center gap-1.5 text-xs text-dark-300 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg transition-all">
+          <Link href="https://trulearnix.com" target="_blank" className="flex items-center gap-1.5 text-xs text-dark-300 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg transition-all">
             <Globe className="w-3.5 h-3.5" /> Website
           </Link>
           <Link href="/student/dashboard" className="flex items-center gap-1.5 text-xs text-dark-300 hover:text-white bg-dark-800 hover:bg-dark-700 px-3 py-1.5 rounded-lg transition-all">
@@ -202,7 +202,7 @@ export default function PartnerSidebar() {
 
             {/* Quick links */}
             <div className="px-4 mb-3 flex gap-2">
-              <Link href="https://peptly.in" target="_blank" onClick={() => setDrawerOpen(false)} className="flex items-center gap-1 text-xs text-dark-300 hover:text-white bg-dark-800 px-3 py-2 rounded-lg flex-1 justify-center">
+              <Link href="https://trulearnix.com" target="_blank" onClick={() => setDrawerOpen(false)} className="flex items-center gap-1 text-xs text-dark-300 hover:text-white bg-dark-800 px-3 py-2 rounded-lg flex-1 justify-center">
                 <Globe className="w-3.5 h-3.5" /> Website
               </Link>
               <Link href="/student/dashboard" onClick={() => setDrawerOpen(false)} className="flex items-center gap-1 text-xs text-dark-300 hover:text-white bg-dark-800 px-3 py-2 rounded-lg flex-1 justify-center">

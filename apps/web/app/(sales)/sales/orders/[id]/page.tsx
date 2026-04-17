@@ -65,7 +65,7 @@ function PrintSlip({ order }: { order: any }) {
     <div class="total"><div style="font-size:13px;color:#666;margin-bottom:4px">Total Amount</div>
     <div class="amount">₹${(order.totalAmount || 0).toLocaleString('en-IN')}</div>
     <div style="font-size:13px;color:#666;margin-top:4px">Paid: ₹${(order.paidAmount || 0).toLocaleString('en-IN')}</div></div>
-    <div class="footer">TruLearnix — Skill Up. Earn Up. | support@peptly.in</div>
+    <div class="footer">TruLearnix — Skill Up. Earn Up. | support@trulearnix.com</div>
     </body></html>`
     const w = window.open('', '_blank')
     if (w) { w.document.write(html); w.document.close(); w.print() }

@@ -117,7 +117,7 @@ export default function PrivacyPolicyPage() {
           <p className="text-gray-300 text-sm leading-relaxed">
             This Privacy Policy explains how <span className="text-white font-semibold">TruLearnix Digital Skills LLP</span> ("TruLearnix", "we", "our", or "us")
             collects, uses, stores, and protects your personal information when you use our platform at{' '}
-            <span className="text-violet-300">peptly.in</span>. By using our services, you agree to the terms of this policy.
+            <span className="text-violet-300">trulearnix.com</span>. By using our services, you agree to the terms of this policy.
           </p>
         </div>
       </section>

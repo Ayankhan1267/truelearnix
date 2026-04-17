@@ -18,7 +18,7 @@ const STATUS = {
   cancelled: { label: 'Cancelled', cls: 'bg-red-900/20 text-red-600',    dot: 'bg-red-700' },
 }
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in').replace(/\/api$/, '')
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com').replace(/\/api$/, '')
 
 const emptyForm = {
   title: '', description: '', courseId: '', batchId: '', scheduledAt: '',

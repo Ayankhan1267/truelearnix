@@ -80,7 +80,7 @@ export default function AffiliatePage() {
 
   const tier = (user as any)?.packageTier || 'starter'
   const tierCfg = TIER_CFG[tier] || TIER_CFG.starter
-  const referralLink = stats?.referralLink || `https://peptly.in?ref=${(user as any)?.affiliateCode}`
+  const referralLink = stats?.referralLink || `https://trulearnix.com?ref=${(user as any)?.affiliateCode}`
 
   return (
     <div className="space-y-5 max-w-4xl pb-8">

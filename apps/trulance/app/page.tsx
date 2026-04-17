@@ -275,7 +275,7 @@ export default function Home() {
           <div className="flex items-center gap-6 text-xs text-gray-500">
             <Link href="/projects" className="hover:text-teal-400 transition-colors">Projects</Link>
             <Link href="/freelancers" className="hover:text-teal-400 transition-colors">Freelancers</Link>
-            <a href="https://peptly.in" className="hover:text-teal-400 transition-colors">TruLearnix</a>
+            <a href="https://trulearnix.com" className="hover:text-teal-400 transition-colors">TruLearnix</a>
           </div>
           <p className="text-xs text-gray-700">© 2025 TruLancer. All rights reserved.</p>
         </div>

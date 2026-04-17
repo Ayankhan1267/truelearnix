@@ -19,7 +19,7 @@ const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-red-900/20 text-red-600',   dot: 'bg-red-700' },
 }
 
-const WEB_BASE = process.env.NEXT_PUBLIC_WEB_URL || 'https://peptly.in'
+const WEB_BASE = process.env.NEXT_PUBLIC_WEB_URL || 'https://trulearnix.com'
 
 const emptyForm = { title: '', description: '', type: 'webinar', scheduledAt: '', duration: 60 }
 

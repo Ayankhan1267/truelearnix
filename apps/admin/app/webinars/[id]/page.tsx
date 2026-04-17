@@ -13,8 +13,8 @@ import {
 import { Room, RoomEvent, Track } from 'livekit-client'
 import { format } from 'date-fns'
 
-const WEB_BASE = process.env.NEXT_PUBLIC_WEB_URL || 'https://peptly.in'
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.peptly.in').replace(/\/api$/, '')
+const WEB_BASE = process.env.NEXT_PUBLIC_WEB_URL || 'https://trulearnix.com'
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.trulearnix.com').replace(/\/api$/, '')
 
 interface ChatMsg { id: number; name: string; msg: string; time: string; isMe?: boolean }
 interface RemoteUser { identity: string; name: string; hasVideo: boolean; hasAudio: boolean; videoTrack?: any; audioTrack?: any }

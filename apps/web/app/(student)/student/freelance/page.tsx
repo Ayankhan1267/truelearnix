@@ -90,7 +90,7 @@ export default function FreelancePage() {
       </div>
 
       {/* TruLance Banner */}
-      <a href="https://trulance.peptly.in" target="_blank" rel="noopener noreferrer"
+      <a href="https://trulancer.trulearnix.com" target="_blank" rel="noopener noreferrer"
         className="flex items-center justify-between p-4 rounded-2xl group transition-all hover:scale-[1.01]"
         style={{ background: 'linear-gradient(135deg,rgba(13,148,136,0.12),rgba(8,145,178,0.1))', border: '1px solid rgba(13,148,136,0.3)' }}>
         <div className="flex items-center gap-3">

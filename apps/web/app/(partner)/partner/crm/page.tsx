@@ -257,7 +257,7 @@ export default function CRMPage() {
 
   const affiliateCode = (user as any)?.affiliateCode || ''
   const captureLink = affiliateCode
-    ? `${typeof window !== 'undefined' ? window.location.origin : 'https://peptly.in'}/capture-lead?ref=${affiliateCode}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : 'https://trulearnix.com'}/capture-lead?ref=${affiliateCode}`
     : ''
 
   const { data, isLoading } = useQuery({

@@ -138,7 +138,7 @@ export default function SecurityPage() {
                 Security Dashboard
               </h1>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: '2px 0 0' }}>
-                peptly.in — Live attack tracking · IP blocking · Threat analysis
+                trulearnix.com — Live attack tracking · IP blocking · Threat analysis
               </p>
             </div>
           </div>
@@ -471,7 +471,7 @@ export default function SecurityPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
               {[
                 { label: 'Helmet.js Headers', status: 'active', desc: 'CSP, HSTS, X-Frame enabled' },
-                { label: 'CORS Protection', status: 'active', desc: 'Only peptly.in origins allowed' },
+                { label: 'CORS Protection', status: 'active', desc: 'Only trulearnix.com origins allowed' },
                 { label: 'Rate Limiting', status: 'active', desc: '400 req/min limit per IP' },
                 { label: 'Injection Detection', status: 'active', desc: 'SQLi, NoSQLi, XSS, Path traversal' },
                 { label: 'Auto IP Blocking', status: 'active', desc: '1h auto-block on trigger' },
