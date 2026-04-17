@@ -11,9 +11,10 @@ import { protect } from '../middleware/auth';
 
 const router = Router();
 
-// Guard: must be affiliate
+// Guard: must be affiliate OR manager/salesperson (they earn commissions too)
 const affiliateGuard = async (req: any, res: any, next: any) => {
-  if (!req.user.isAffiliate) {
+  const isManagerOrSales = ['manager', 'salesperson'].includes(req.user.role);
+  if (!req.user.isAffiliate && !isManagerOrSales) {
     return res.status(403).json({ success: false, message: 'Partner panel locked. Purchase a package to unlock.', locked: true });
   }
   next();

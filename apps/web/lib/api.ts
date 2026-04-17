@@ -303,6 +303,8 @@ export const managerAPI = {
   myTips:          ()                             => api.get('/manager/my-tips'),
   myGoals:         ()                             => api.get('/manager/my-goals'),
   emiCommissions:  ()                             => api.get('/manager/emi-commissions'),
+  withdrawHistory: ()                             => api.get('/manager/withdrawals'),
+  requestWithdraw: (data: { amount: number })     => api.post('/manager/withdraw', data),
 };
 
 // Admin Mentor API

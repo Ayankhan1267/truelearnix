@@ -137,6 +137,7 @@ export default function WithdrawalsPage() {
   }
 
   const complete = async (id: string) => {
+    if (!txRef.trim()) { toast.error('Transaction ID / UTR number is required'); return; }
     setActing(true)
     try {
       await adminAPI.completeWithdrawal(id, txRef)
@@ -504,7 +505,7 @@ export default function WithdrawalsPage() {
                     type="text"
                     value={txRef}
                     onChange={e => setTxRef(e.target.value)}
-                    placeholder="Transaction ID / UTR number (optional)"
+                    placeholder="Transaction ID / UTR number *"
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500"
                   />
                   <button

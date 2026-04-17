@@ -6,16 +6,17 @@ import { authAPI } from '@/lib/api'
 import Link from 'next/link'
 import {
   LayoutDashboard, Users, Trophy, LogOut, Menu, X, UserCog,
-  Bell, ChevronRight, CalendarCheck, Kanban, CalendarDays
+  Bell, ChevronRight, CalendarCheck, Kanban, CalendarDays, ArrowDownToLine
 } from 'lucide-react'
 
 const navItems = [
-  { href: '/manager/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/manager/partners',        icon: Users,           label: 'My Partners' },
-  { href: '/manager/emi-commissions', icon: CalendarCheck,   label: 'EMI Commissions' },
-  { href: '/manager/kanban',          icon: Kanban,          label: 'Kanban' },
-  { href: '/manager/calendar',        icon: CalendarDays,    label: 'Calendar' },
-  { href: '/manager/leaderboard',     icon: Trophy,          label: 'Leaderboard' },
+  { href: '/manager/dashboard',       icon: LayoutDashboard,  label: 'Dashboard' },
+  { href: '/manager/partners',        icon: Users,            label: 'My Partners' },
+  { href: '/manager/emi-commissions', icon: CalendarCheck,    label: 'EMI Commissions' },
+  { href: '/manager/withdraw',        icon: ArrowDownToLine,  label: 'Withdraw' },
+  { href: '/manager/kanban',          icon: Kanban,           label: 'Kanban' },
+  { href: '/manager/calendar',        icon: CalendarDays,     label: 'Calendar' },
+  { href: '/manager/leaderboard',     icon: Trophy,           label: 'Leaderboard' },
 ]
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {

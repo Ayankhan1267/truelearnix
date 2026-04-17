@@ -5,6 +5,7 @@ import PartnerTip from '../models/PartnerTip';
 import PartnerGoal from '../models/PartnerGoal';
 import Commission from '../models/Commission';
 import EmiInstallment from '../models/EmiInstallment';
+import Withdrawal from '../models/Withdrawal';
 
 const router = Router();
 const guard = [protect, authorize('manager', 'admin', 'superadmin')];
@@ -258,6 +259,62 @@ router.get('/emi-commissions', ...guard, async (req: any, res) => {
     const pendingCommission = enriched.filter(i => !i.commissionPaid && i.status !== 'paid').reduce((s, i) => s + (i.commissionAmount || 0), 0);
 
     res.json({ success: true, installments: enriched, totalCommission, earnedCommission, pendingCommission });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── GET /manager/withdrawals — manager's own withdrawal history ───────────────
+router.get('/withdrawals', ...guard, async (req: any, res) => {
+  try {
+    const withdrawals = await Withdrawal.find({ user: req.user._id })
+      .sort('-createdAt').lean();
+    const manager = await User.findById(req.user._id).select('wallet totalWithdrawn kyc');
+    res.json({ success: true, withdrawals, wallet: (manager as any)?.wallet || 0, totalWithdrawn: (manager as any)?.totalWithdrawn || 0 });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ── POST /manager/withdraw — manager requests withdrawal ─────────────────────
+router.post('/withdraw', ...guard, async (req: any, res) => {
+  try {
+    const mgr = await User.findById(req.user._id).select('kyc wallet totalWithdrawn name');
+    if (!mgr) return res.status(404).json({ success: false, message: 'User not found' });
+    if ((mgr as any).kyc?.status !== 'verified') {
+      return res.status(400).json({ success: false, message: 'KYC verification required before withdrawal. Please complete and get your KYC approved.' });
+    }
+
+    const { amount } = req.body;
+    const amt = Number(amount);
+    if (!amt || amt < 500) return res.status(400).json({ success: false, message: 'Minimum withdrawal amount is ₹500' });
+    if (amt > ((mgr as any).wallet || 0)) return res.status(400).json({ success: false, message: 'Insufficient wallet balance' });
+
+    const existing = await Withdrawal.findOne({ user: req.user._id, hrStatus: 'pending' });
+    if (existing) return res.status(400).json({ success: false, message: 'You already have a pending withdrawal request. Please wait for it to be processed.' });
+
+    const tdsRate = 2;
+    const tdsAmount = Math.round(amt * tdsRate / 100);
+    const gatewayFee = 4.40;
+    const gatewayFeeGst = Math.round(gatewayFee * 0.18 * 100) / 100;
+    const totalGatewayFee = Math.round((gatewayFee + gatewayFeeGst) * 100) / 100;
+    const netAmount = amt - tdsAmount - totalGatewayFee;
+
+    await User.findByIdAndUpdate(req.user._id, { $inc: { wallet: -amt, totalWithdrawn: amt } });
+
+    const withdrawal = await Withdrawal.create({
+      user: req.user._id,
+      amount: amt,
+      method: 'bank',
+      accountName: (mgr as any).kyc?.bankHolderName,
+      accountNumber: (mgr as any).kyc?.bankAccount,
+      ifscCode: (mgr as any).kyc?.bankIfsc,
+      status: 'pending',
+      hrStatus: 'pending',
+      tdsRate,
+      tdsAmount,
+      gatewayFee: totalGatewayFee,
+      gatewayFeeGst,
+      netAmount,
+    });
+
+    res.json({ success: true, message: 'Withdrawal request submitted. HR will review and process within 3-5 business days.', withdrawal });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 

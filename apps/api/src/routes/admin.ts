@@ -671,13 +671,48 @@ router.patch('/withdrawals/:id/hr-approve', async (req: any, res) => {
     }
 
     res.json({ success: true, message: payoutMsg, autoPayoutTriggered, withdrawal });
-    // Push notify the user about withdrawal approval
+
+    // Push notify + email/WhatsApp in background
     setImmediate(async () => {
       try {
         const { notify } = await import('../services/pushService');
+        const { sendWithdrawalSuccessEmail } = await import('../services/emailService');
+        const { sendWhatsAppText } = await import('../services/whatsappMetaService');
         const w = withdrawal as any;
+        const partner = w.user as any;
         const amt = w.netAmount || w.amount;
-        await notify(w.user?._id || w.user, '✅ Withdrawal Approved!', `₹${amt} withdrawal has been approved and is being processed.`, { type: 'success', url: '/partner/withdraw', tag: 'withdrawal' });
+
+        // Push notification
+        await notify(partner?._id || w.user, '✅ Withdrawal Approved!', `₹${amt} withdrawal has been approved and is being processed.`, { type: 'success', url: '/partner/withdraw', tag: 'withdrawal' }).catch(() => {});
+
+        // If Razorpay auto-payout completed instantly → send success email+WA
+        if (autoPayoutTriggered && w.status === 'completed') {
+          const txId = w.razorpayPayoutId || 'AUTO';
+          const completedAt = new Date();
+          const dateStr = completedAt.toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+          if (partner?.email) {
+            await sendWithdrawalSuccessEmail(partner.email, {
+              name: partner.name, amount: w.amount, tdsAmount: w.tdsAmount,
+              gatewayFee: w.gatewayFee, netAmount: w.netAmount, transactionId: txId,
+              bankAccount: w.accountNumber || partner?.kyc?.bankAccount,
+              bankName: partner?.kyc?.bankName,
+              accountName: w.accountName || partner?.kyc?.bankHolderName,
+              completedAt,
+            }).catch(() => {});
+          }
+
+          if (partner?.phone) {
+            const msg = `*TruLearnix — Withdrawal Successful* ✅\n\nHi ${partner.name},\n\n` +
+              `Your withdrawal of *₹${w.amount.toLocaleString('en-IN')}* has been processed!\n\n` +
+              `💰 *Net Credited:* ₹${w.netAmount.toLocaleString('en-IN')}\n` +
+              `🔖 *Transaction ID:* ${txId}\n` +
+              `📅 *Date & Time:* ${dateStr}\n` +
+              `📊 TDS (2%): ₹${w.tdsAmount.toLocaleString('en-IN')} | Gateway: ₹${w.gatewayFee.toFixed(2)}\n\n` +
+              `Amount credited to your registered bank account.\n\nFor queries: support@peptly.in`;
+            await sendWhatsAppText(partner.phone, msg).catch(() => {});
+          }
+        }
       } catch {}
     });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
@@ -714,15 +749,54 @@ router.patch('/withdrawals/:id/hr-reject', async (req: any, res) => {
 router.patch('/withdrawals/:id/complete', async (req: any, res) => {
   try {
     const { transactionRef } = req.body;
-    const withdrawal = await Withdrawal.findById(req.params.id);
+    const withdrawal = await Withdrawal.findById(req.params.id).populate('user', 'name email phone kyc');
     if (!withdrawal) return res.status(404).json({ success: false, message: 'Withdrawal not found' });
     if (withdrawal.hrStatus !== 'approved') return res.status(400).json({ success: false, message: 'HR approval required first' });
 
+    const completedAt = new Date();
     withdrawal.status = 'completed';
     if (transactionRef) withdrawal.razorpayPayoutId = transactionRef;
+    withdrawal.processedAt = completedAt;
     await withdrawal.save();
 
     res.json({ success: true, message: 'Withdrawal marked as completed.', withdrawal });
+
+    // Send email + WhatsApp to partner
+    setImmediate(async () => {
+      try {
+        const { sendWithdrawalSuccessEmail } = await import('../services/emailService');
+        const { sendWhatsAppText } = await import('../services/whatsappMetaService');
+        const partner = withdrawal.user as any;
+        const txId = transactionRef || withdrawal.razorpayPayoutId || 'N/A';
+        const dateStr = completedAt.toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        if (partner?.email) {
+          await sendWithdrawalSuccessEmail(partner.email, {
+            name: partner.name,
+            amount: withdrawal.amount,
+            tdsAmount: withdrawal.tdsAmount,
+            gatewayFee: withdrawal.gatewayFee,
+            netAmount: withdrawal.netAmount,
+            transactionId: txId,
+            bankAccount: withdrawal.accountNumber || partner?.kyc?.bankAccount,
+            bankName: partner?.kyc?.bankName,
+            accountName: withdrawal.accountName || partner?.kyc?.bankHolderName,
+            completedAt,
+          }).catch(() => {});
+        }
+
+        if (partner?.phone) {
+          const msg = `*TruLearnix — Withdrawal Successful* ✅\n\nHi ${partner.name},\n\n` +
+            `Your withdrawal of *₹${withdrawal.amount.toLocaleString('en-IN')}* has been processed!\n\n` +
+            `💰 *Net Credited:* ₹${withdrawal.netAmount.toLocaleString('en-IN')}\n` +
+            `🔖 *Transaction ID:* ${txId}\n` +
+            `📅 *Date & Time:* ${dateStr}\n` +
+            `📊 TDS (2%): ₹${withdrawal.tdsAmount.toLocaleString('en-IN')} | Gateway: ₹${withdrawal.gatewayFee.toFixed(2)}\n\n` +
+            `Amount credited to your registered bank account.\n\nFor queries: support@peptly.in`;
+          await sendWhatsAppText(partner.phone, msg).catch(() => {});
+        }
+      } catch {}
+    });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -1954,12 +2028,52 @@ router.patch('/mentor-salaries/:id/approve', async (req: any, res) => {
 router.patch('/mentor-salaries/:id/mark-paid', async (req: any, res) => {
   try {
     const MentorSalary = (await import('../models/MentorSalary')).default;
-    const salary = await MentorSalary.findByIdAndUpdate(req.params.id,
-      { status: 'paid', paidAt: new Date() },
-      { new: true }
-    ).populate('mentor', 'name email');
+    const salary = await MentorSalary.findById(req.params.id)
+      .populate('mentor', 'name email phone kyc');
     if (!salary) return res.status(404).json({ success: false, message: 'Salary not found' });
+    if (salary.status === 'paid') return res.status(400).json({ success: false, message: 'Already marked as paid' });
+
+    salary.status = 'paid';
+    salary.paidAt = new Date();
+    await salary.save();
+
     res.json({ success: true, salary });
+
+    // Send email + WhatsApp in background
+    setImmediate(async () => {
+      try {
+        const { sendSalaryPaidEmail } = await import('../services/emailService');
+        const { sendWhatsAppText } = await import('../services/whatsappMetaService');
+        const mentor = salary.mentor as any;
+        const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthName = MONTHS[salary.month] || String(salary.month);
+
+        if (mentor?.email) {
+          await sendSalaryPaidEmail(mentor.email, {
+            name: mentor.name, slipNo: salary.slipNo, month: monthName, year: salary.year,
+            grossAmount: salary.amount, earnedAmount: salary.earnedAmount,
+            tdsRate: salary.tdsRate, tdsAmount: salary.tds, netAmount: salary.netAmount,
+            workingDays: salary.workingDays, presentDays: salary.presentDays,
+            absentDays: salary.absentDays, halfDays: salary.halfDays,
+            leaveDays: salary.leaveDays, unpaidLeaveDays: salary.unpaidLeaveDays,
+            holidayDays: salary.holidayDays, payableDays: salary.payableDays,
+            perDayAmount: salary.perDayAmount,
+            bankAccount: salary.bankAccount, bankName: salary.bankName,
+            paidAt: salary.paidAt!, remarks: salary.remarks, role: 'mentor',
+          }).catch(() => {});
+        }
+
+        if (mentor?.phone) {
+          const msg = `*TruLearnix — Salary Credited* ✅\n\nHi ${mentor.name},\n\nYour salary for *${monthName} ${salary.year}* has been credited.\n\n` +
+            `💰 *Net Amount:* ₹${salary.netAmount.toLocaleString('en-IN')}\n` +
+            `📊 Gross: ₹${salary.amount.toLocaleString('en-IN')} | TDS (${salary.tdsRate}%): ₹${salary.tds.toLocaleString('en-IN')}\n` +
+            (salary.workingDays > 0 ? `📅 Attendance: Present ${salary.presentDays} | Absent ${salary.absentDays} | Half-day ${salary.halfDays} | Holiday ${salary.holidayDays}\n` : '') +
+            `🗓️ Slip: ${salary.slipNo}\n\nFor queries: hr@peptly.in`;
+          await sendWhatsAppText(mentor.phone, msg).catch(() => {});
+        }
+      } catch {}
+    });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -2094,7 +2208,43 @@ router.patch('/employee-salaries/:id/mark-paid', async (req: any, res) => {
     salary.status = 'paid';
     salary.paidAt = new Date();
     await salary.save();
+
     res.json({ success: true, salary });
+
+    // Send email + WhatsApp in background
+    setImmediate(async () => {
+      try {
+        const { sendSalaryPaidEmail } = await import('../services/emailService');
+        const { sendWhatsAppText } = await import('../services/whatsappMetaService');
+        const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthName = MONTHS[salary.month] || String(salary.month);
+
+        if (emp?.email) {
+          await sendSalaryPaidEmail(emp.email, {
+            name: emp.name, slipNo: salary.slipNo, month: monthName, year: salary.year,
+            grossAmount: salary.grossAmount, earnedAmount: salary.earnedAmount,
+            tdsRate: salary.tdsRate, tdsAmount: salary.tds, netAmount: salary.netAmount,
+            workingDays: salary.workingDays, presentDays: salary.presentDays,
+            absentDays: salary.absentDays, halfDays: salary.halfDays,
+            leaveDays: salary.leaveDays, unpaidLeaveDays: salary.unpaidLeaveDays,
+            holidayDays: salary.holidayDays, payableDays: salary.payableDays,
+            perDayAmount: salary.perDayAmount,
+            bankAccount: salary.bankAccount, bankName: salary.bankName,
+            paidAt: salary.paidAt!, remarks: salary.remarks, role: 'employee',
+          }).catch(() => {});
+        }
+
+        if (emp?.phone) {
+          const msg = `*TruLearnix — Salary Credited* ✅\n\nHi ${emp.name},\n\nYour salary for *${monthName} ${salary.year}* has been credited.\n\n` +
+            `💰 *Net Amount:* ₹${salary.netAmount.toLocaleString('en-IN')}\n` +
+            `📊 Gross: ₹${salary.grossAmount.toLocaleString('en-IN')} | TDS (${salary.tdsRate}%): ₹${salary.tds.toLocaleString('en-IN')}\n` +
+            (salary.workingDays > 0 ? `📅 Attendance: Present ${salary.presentDays} | Absent ${salary.absentDays} | Half-day ${salary.halfDays} | Holiday ${salary.holidayDays}\n` : '') +
+            `🗓️ Slip: ${salary.slipNo}\n\nFor queries: hr@peptly.in`;
+          await sendWhatsAppText(emp.phone, msg).catch(() => {});
+        }
+      } catch {}
+    });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
