@@ -5,6 +5,7 @@ import redisClient from '../config/redis';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendWhatsAppText } from '../services/whatsappMetaService';
+import { sendReferralWelcomeEmail, sendSponsorJoinAlert, sendPasswordResetEmail } from '../services/emailService';
 
 function generateAutoPassword(): string {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -43,12 +44,13 @@ export const register = async (req: Request, res: Response) => {
     const waMsg = `🔐 Your TruLearnix OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
     try { await sendWhatsAppText(phone, waMsg); } catch {}
 
-    res.status(201).json({
+    const response: any = {
       success: true,
       message: 'OTP sent to your WhatsApp. Please verify to continue.',
       tempId,
-      _devOtp: otp, // remove after SMTP/WhatsApp is configured
-    });
+    };
+    if (process.env.NODE_ENV !== 'production') response._devOtp = otp;
+    res.status(201).json(response);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -102,6 +104,28 @@ export const verifyOTP = async (req: Request, res: Response) => {
       // Store plaintext password in Redis for 2h — sent via WhatsApp after purchase
       await redisClient.setEx(`reg-pw:${user._id}`, 7200, reg.autoPassword);
 
+      // If joined via referral — notify user + sponsor (fire and forget)
+      if (referredBy) {
+        (async () => {
+          try {
+            const sponsor = await User.findById(referredBy).select('name email phone');
+            if (!sponsor) return;
+
+            const waToUser = `🎓 *Welcome to TruLearnix!*\n\nHi *${reg.name}*! You've been registered by your mentor *${sponsor.name}*.\n\n📧 *Email:* ${reg.email}\n🔑 *Password:* ${reg.autoPassword}\n\n⚠️ Please change your password after first login.\n👉 ${process.env.WEB_URL}/login`;
+            const waToSponsor = `🔔 *New Member Joined!*\n\nHi *${sponsor.name}*! A new member has joined TruLearnix through your referral link.\n\n👤 *Name:* ${reg.name}\n📧 *Email:* ${reg.email}\n\nEncourage them to purchase a package to earn your commission! 💰\n👉 ${process.env.WEB_URL}/partner/dashboard`;
+
+            await Promise.all([
+              sendReferralWelcomeEmail(reg.email, reg.name, reg.email, reg.autoPassword, sponsor.name),
+              sendWhatsAppText(reg.phone, waToUser),
+              sendSponsorJoinAlert(sponsor.email, sponsor.name, reg.name, reg.email),
+              sponsor.phone ? sendWhatsAppText(sponsor.phone, waToSponsor) : Promise.resolve(),
+            ]);
+          } catch (e: any) {
+            console.error('[referral-notify]', e.message);
+          }
+        })();
+      }
+
       const accessToken = generateAccessToken(user.id);
       const refreshToken = generateRefreshToken(user.id);
       user.refreshToken = refreshToken;
@@ -151,7 +175,9 @@ export const resendOTP = async (req: Request, res: Response) => {
       const reg = JSON.parse(pendingRaw);
       const waMsg = `🔐 Your TruLearnix OTP is: *${otp}*\n\nValid for 10 minutes.`;
       try { await sendWhatsAppText(reg.phone, waMsg); } catch {}
-      return res.json({ success: true, message: 'OTP resent to WhatsApp', _devOtp: otp });
+      const r: any = { success: true, message: 'OTP resent to WhatsApp' };
+      if (process.env.NODE_ENV !== 'production') r._devOtp = otp;
+      return res.json(r);
     }
 
     // Existing user
@@ -160,7 +186,9 @@ export const resendOTP = async (req: Request, res: Response) => {
     const waMsg = `🔐 Your TruLearnix OTP is: *${otp}*\n\nValid for 10 minutes.`;
     try { await sendWhatsAppText(user.phone, waMsg); } catch {}
 
-    res.json({ success: true, message: 'OTP resent', _devOtp: otp });
+    const r2: any = { success: true, message: 'OTP resent' };
+    if (process.env.NODE_ENV !== 'production') r2._devOtp = otp;
+    res.json(r2);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -226,8 +254,11 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const waMsg = `🔐 TruLearnix Password Reset OTP: *${otp}*\n\nValid for 10 minutes. If you didn't request this, ignore this message.`;
     try { await sendWhatsAppText(user.phone, waMsg); } catch {}
+    try { await sendPasswordResetEmail(user.email, otp, user.name); } catch {}
 
-    res.json({ success: true, message: 'Password reset OTP sent to your WhatsApp', userId: user._id, _devOtp: otp });
+    const r3: any = { success: true, message: 'Password reset OTP sent to your email and WhatsApp', userId: user._id };
+    if (process.env.NODE_ENV !== 'production') r3._devOtp = otp;
+    res.json(r3);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

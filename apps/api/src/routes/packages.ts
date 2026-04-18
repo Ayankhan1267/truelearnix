@@ -6,8 +6,8 @@ const router = Router();
 
 router.get('/', getPackages);
 router.get('/commission-matrix', getCommissionMatrix);
-router.get('/:id', getPackageById);
 router.get('/my', protect, getMyPackage);
+router.get('/:id', getPackageById);
 router.post('/order', protect, createPackageOrder);
 router.post('/verify', protect, verifyPackagePayment);
 
