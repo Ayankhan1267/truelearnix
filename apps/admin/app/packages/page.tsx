@@ -11,26 +11,34 @@ import {
 } from 'lucide-react'
 
 const TIER_COLORS: Record<string, string> = {
+  basic:   'from-teal-500/20 to-teal-600/10 border-teal-500/30',
   starter: 'from-sky-500/20 to-sky-600/10 border-sky-500/30',
   pro: 'from-violet-500/20 to-violet-600/10 border-violet-500/30',
+  proedge: 'from-fuchsia-500/20 to-fuchsia-600/10 border-fuchsia-500/30',
   elite: 'from-amber-500/20 to-amber-600/10 border-amber-500/30',
   supreme: 'from-rose-500/20 to-rose-600/10 border-rose-500/30',
 }
 const TIER_ACCENT: Record<string, string> = {
+  basic:   'text-teal-400',
   starter: 'text-sky-400',
   pro: 'text-violet-400',
+  proedge: 'text-fuchsia-400',
   elite: 'text-amber-400',
   supreme: 'text-rose-400',
 }
 const TIER_BORDER: Record<string, string> = {
+  basic:   'border-teal-500/50',
   starter: 'border-sky-500/50',
   pro: 'border-violet-500/50',
+  proedge: 'border-fuchsia-500/50',
   elite: 'border-amber-500/50',
   supreme: 'border-rose-500/50',
 }
 const TIER_ICON: Record<string, any> = {
+  basic:   Zap,
   starter: Zap,
   pro: Star,
+  proedge: Star,
   elite: TrendingUp,
   supreme: Shield,
 }
@@ -511,9 +519,18 @@ export default function PackagesPage() {
 
                   <div className="flex items-center justify-between text-xs mb-3">
                     <span className="text-gray-500">{(pkg.courses || []).length} courses included</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${pkg.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {pkg.isActive ? 'Active' : 'Inactive'}
-                    </span>
+                    <button
+                      onClick={() => updatePkgMutation.mutate({ id: pkg._id, data: { isActive: !pkg.isActive } })}
+                      title={pkg.isActive ? 'Click to hide from website' : 'Click to show on website'}
+                      className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${
+                        pkg.isActive
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30'
+                          : 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-green-500/20 hover:text-green-400 hover:border-green-500/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${pkg.isActive ? 'bg-green-400' : 'bg-red-400'}`} />
+                      {pkg.isActive ? 'Visible' : 'Hidden'}
+                    </button>
                   </div>
 
                   <ul className="space-y-1">

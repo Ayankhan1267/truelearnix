@@ -42,7 +42,7 @@ async function logAction(action: string, detail: string) {
 
 async function getEmployees() {
   return User.find({
-    role: { $in: ['admin', 'manager', 'employee'] },
+    role: { $in: ['admin', 'manager', 'employee', 'salesperson'] },
     isActive: true,
     phone: { $exists: true, $ne: '' },
   }).select('name email phone role department').lean();
@@ -396,16 +396,25 @@ router.get('/pulse', async (_req, res) => {
   try {
     const today = todayIST();
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const [todaySales, monthSales, totalStudents, todayStudents, liveClasses, openTickets, pendingWithdrawals, todayReports, totalEmps] = await Promise.all([
+    const [
+      todaySales, monthSales, totalStudents, todayStudents,
+      liveClasses, openTickets, pendingWithdrawals, todayReports, totalEmps,
+      totalPartners, hotLeads, pendingKyc, liveWebinars, pendingComm,
+    ] = await Promise.all([
       PackagePurchase.aggregate([{ $match: { status: 'paid', createdAt: { $gte: today } } }, { $group: { _id: null, revenue: { $sum: '$totalAmount' }, count: { $sum: 1 } } }]),
       PackagePurchase.aggregate([{ $match: { status: 'paid', createdAt: { $gte: monthStart } } }, { $group: { _id: null, revenue: { $sum: '$totalAmount' }, count: { $sum: 1 } } }]),
       User.countDocuments({ role: 'student' }),
       User.countDocuments({ role: 'student', createdAt: { $gte: today } }),
       (await import('../models/LiveClass')).default.countDocuments({ status: 'live' }),
       (await import('../models/SupportTicket')).default.countDocuments({ status: 'open' }),
-      (await import('../models/Withdrawal')).default.countDocuments({ status: 'pending' }),
+      (await import('../models/Withdrawal')).default.aggregate([{ $match: { hrStatus: 'pending' } }, { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: '$amount' } } }]),
       EmployeeReport.countDocuments({ date: today, status: 'submitted' }),
-      User.countDocuments({ role: { $in: ['admin', 'manager', 'employee'] }, isActive: true }),
+      User.countDocuments({ role: { $in: ['admin', 'manager', 'employee', 'salesperson'] }, isActive: true }),
+      User.countDocuments({ isAffiliate: true, isActive: true }),
+      (await import('../models/Lead')).default.countDocuments({ aiScoreLabel: 'hot' }),
+      (async () => { try { const KYC = require('../models/KYCVerification').default; return KYC.countDocuments({ status: 'submitted' }); } catch { return 0; } })(),
+      (await import('../models/Webinar')).default.countDocuments({ status: 'live' }),
+      Commission.aggregate([{ $match: { status: 'pending' } }, { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: '$commissionAmount' } } }]),
     ]);
     res.json({
       success: true,
@@ -414,8 +423,14 @@ router.get('/pulse', async (_req, res) => {
         month: { revenue: monthSales[0]?.revenue || 0, sales: monthSales[0]?.count || 0 },
         totalLearners: totalStudents,
         liveClasses,
+        liveWebinars,
         openTickets,
-        pendingWithdrawals,
+        pendingWithdrawals: pendingWithdrawals[0]?.count || 0,
+        pendingWithdrawalAmount: pendingWithdrawals[0]?.amount || 0,
+        pendingKyc,
+        hotLeads,
+        totalPartners,
+        pendingCommissions: { count: pendingComm[0]?.count || 0, amount: pendingComm[0]?.amount || 0 },
         employeeReports: { submitted: todayReports, total: totalEmps },
       },
     });

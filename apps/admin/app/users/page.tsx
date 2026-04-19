@@ -131,8 +131,10 @@ const roleColor = (r: string) => {
 
 const tierColor = (t: string) => {
   const map: Record<string, string> = {
+    basic:   'text-teal-400 bg-teal-500/20 border border-teal-500/30',
     starter: 'text-sky-400 bg-sky-500/20 border border-sky-500/30',
     pro:     'text-violet-400 bg-violet-500/20 border border-violet-500/30',
+    proedge: 'text-fuchsia-400 bg-fuchsia-500/20 border border-fuchsia-500/30',
     elite:   'text-amber-400 bg-amber-500/20 border border-amber-500/30',
     supreme: 'text-rose-400 bg-rose-500/20 border border-rose-500/30',
   }
@@ -174,6 +176,16 @@ export default function UsersPage() {
   const [showCreatePwd, setShowCreatePwd] = useState(false)
 
   const { data: packagesData } = useQuery({ queryKey: ['admin-packages'], queryFn: () => adminAPI.packages().then(r => r.data.packages || r.data) })
+
+  const tierToName = useMemo(() => {
+    const map: Record<string, string> = {}
+    if (Array.isArray(packagesData)) {
+      packagesData.forEach((p: any) => { if (p.tier && p.name) map[p.tier] = p.name })
+    }
+    return map
+  }, [packagesData])
+
+  const tierLabel = (t: string) => tierToName[t] || (t.charAt(0).toUpperCase() + t.slice(1))
 
   const activeTab = TYPE_TABS.find(t => t.key === typeTab) || TYPE_TABS[0]
   const effectiveRole = activeTab.roleFilter || role || undefined
@@ -438,7 +450,7 @@ export default function UsersPage() {
               className="search-input capitalize text-sm cursor-pointer"
             >
               <option value="">All Tiers</option>
-              {TIERS.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+              {TIERS.map(t => <option key={t} value={t}>{tierLabel(t)}</option>)}
             </select>
           </div>
         </div>
@@ -536,7 +548,7 @@ export default function UsersPage() {
                           className={`badge ${tierColor(user.packageTier)} capitalize cursor-pointer bg-transparent outline-none text-xs`}
                         >
                           <option value="" className="bg-slate-800 text-white">None</option>
-                          {TIERS.map(t => <option key={t} value={t} className="bg-slate-800 text-white">{t}</option>)}
+                          {TIERS.map(t => <option key={t} value={t} className="bg-slate-800 text-white">{tierLabel(t)}</option>)}
                         </select>
                       </td>
 
@@ -727,7 +739,7 @@ export default function UsersPage() {
                     onChange={e => setIeForm(f => ({ ...f, packageTier: e.target.value }))}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 text-sm appearance-none"
                   >
-                    {['starter','pro','elite','supreme'].map(t => <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+                    {TIERS.map(t => <option key={t} value={t}>{tierLabel(t)}</option>)}
                   </select>
                 </div>
               )}

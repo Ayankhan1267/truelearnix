@@ -297,7 +297,7 @@ export const adminAPI = {
   reportCommission: (params?: any) => api.get('/admin/reports/commission', { params }),
   reportSales: (params?: any) => api.get('/admin/reports/sales', { params }),
   reportPerformance: (params?: any) => api.get('/admin/reports/performance', { params }),
-  reportTeam: () => api.get('/admin/reports/team'),
+  reportTeam: (params?: any) => api.get('/admin/reports/team', { params }),
   reportLearners: (params?: any) => api.get('/admin/reports/learners', { params }),
   // EMI
   emi: (params?: any) => api.get('/admin/emi', { params }),

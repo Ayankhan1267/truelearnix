@@ -11,13 +11,15 @@ import {
 } from 'lucide-react'
 
 const TIER_COLOR: Record<string, string> = {
-  free: 'bg-gray-500/20 text-gray-400',
+  free:    'bg-gray-500/20 text-gray-400',
+  basic:   'bg-teal-500/20 text-teal-400',
   starter: 'bg-blue-500/20 text-blue-400',
-  pro: 'bg-indigo-500/20 text-indigo-400',
-  elite: 'bg-violet-500/20 text-violet-400',
+  pro:     'bg-indigo-500/20 text-indigo-400',
+  proedge: 'bg-fuchsia-500/20 text-fuchsia-400',
+  elite:   'bg-violet-500/20 text-violet-400',
   supreme: 'bg-yellow-500/20 text-yellow-400',
 }
-const TIER_ICON: Record<string, string> = { free: '🆓', starter: '⚡', pro: '🚀', elite: '💎', supreme: '👑' }
+const TIER_ICON: Record<string, string> = { free: '🆓', basic: '🌱', starter: '⚡', pro: '🚀', proedge: '🔥', elite: '💎', supreme: '👑' }
 const fmt = (n: number) => new Intl.NumberFormat('en-IN').format(n || 0)
 
 export default function PartnersPage() {
@@ -315,6 +317,10 @@ export default function PartnersPage() {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full ${p.isActive ? 'bg-green-400' : 'bg-gray-600'}`} />
+                        <button onClick={() => setRefModal({ id: p._id, name: p.name })}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 transition-colors">
+                          <Users className="w-3 h-3" /> Referrals ({p._perf?.referralCount || 0})
+                        </button>
                         <button onClick={() => openAssign(p)}
                           className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 transition-colors">
                           <UserCog className="w-3 h-3" /> Assign

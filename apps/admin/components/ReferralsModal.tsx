@@ -9,11 +9,13 @@ import {
 import { format } from 'date-fns'
 
 const TIER_COLOR: Record<string, { color: string; bg: string; icon: string }> = {
-  free:    { color: 'text-gray-400',   bg: 'bg-gray-500/15',   icon: '🆓' },
-  starter: { color: 'text-blue-400',   bg: 'bg-blue-500/15',   icon: '⚡' },
-  pro:     { color: 'text-indigo-400', bg: 'bg-indigo-500/15', icon: '🚀' },
-  elite:   { color: 'text-violet-400', bg: 'bg-violet-500/15', icon: '💎' },
-  supreme: { color: 'text-yellow-400', bg: 'bg-yellow-500/15', icon: '👑' },
+  free:    { color: 'text-gray-400',    bg: 'bg-gray-500/15',    icon: '🆓' },
+  basic:   { color: 'text-teal-400',    bg: 'bg-teal-500/15',    icon: '🌱' },
+  starter: { color: 'text-blue-400',    bg: 'bg-blue-500/15',    icon: '⚡' },
+  pro:     { color: 'text-indigo-400',  bg: 'bg-indigo-500/15',  icon: '🚀' },
+  proedge: { color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/15', icon: '🔥' },
+  elite:   { color: 'text-violet-400',  bg: 'bg-violet-500/15',  icon: '💎' },
+  supreme: { color: 'text-yellow-400',  bg: 'bg-yellow-500/15',  icon: '👑' },
 }
 const fmt = (n: number) => new Intl.NumberFormat('en-IN').format(n || 0)
 

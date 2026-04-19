@@ -101,8 +101,12 @@ export default function TruLanceFreelancersPage() {
                     </td>
                     <td className="px-4 py-4">
                       <span className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${
-                        u.packageTier === 'pro' ? 'bg-violet-500/15 text-violet-400'
-                        : u.packageTier === 'elite' ? 'bg-yellow-500/15 text-yellow-400'
+                        u.packageTier === 'basic'   ? 'bg-teal-500/15 text-teal-400'
+                        : u.packageTier === 'starter' ? 'bg-sky-500/15 text-sky-400'
+                        : u.packageTier === 'pro'     ? 'bg-violet-500/15 text-violet-400'
+                        : u.packageTier === 'proedge' ? 'bg-fuchsia-500/15 text-fuchsia-400'
+                        : u.packageTier === 'elite'   ? 'bg-amber-500/15 text-amber-400'
+                        : u.packageTier === 'supreme' ? 'bg-rose-500/15 text-rose-400'
                         : 'bg-gray-500/15 text-gray-400'
                       }`}>{u.packageTier || 'free'}</span>
                     </td>

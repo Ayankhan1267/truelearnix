@@ -12,7 +12,8 @@ import {
   Wallet, BarChart3, PieChart,
   ShieldCheck, Calculator, BadgePercent, Coins,
   IndianRupee, CreditCard, Building2, Activity,
-  ShoppingCart, Download, Search, CheckCircle2, Clock, XCircle
+  ShoppingCart, Download, Search, CheckCircle2, Clock, XCircle,
+  Filter, FileDown, CalendarRange
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -45,8 +46,10 @@ const catBar: Record<string,string> = {
   legal:'bg-orange-500', other:'bg-gray-500',
 }
 const tierColors: Record<string,string> = {
+  free:'text-gray-400 bg-gray-500/20', basic:'text-teal-400 bg-teal-500/20',
   starter:'text-sky-400 bg-sky-500/20', pro:'text-violet-400 bg-violet-500/20',
-  elite:'text-amber-400 bg-amber-500/20', supreme:'text-rose-400 bg-rose-500/20', free:'text-gray-400 bg-gray-500/20'
+  proedge:'text-fuchsia-400 bg-fuchsia-500/20', elite:'text-amber-400 bg-amber-500/20',
+  supreme:'text-rose-400 bg-rose-500/20'
 }
 
 function GrowthBadge({ value }: { value: number }) {
@@ -136,6 +139,11 @@ export default function FinanceDashboard() {
   const [purchaseSearch, setPurchaseSearch] = useState('')
   const [purchasePage, setPurchasePage] = useState(1)
   const [purchaseStatus, setPurchaseStatus] = useState('')
+  const [purchaseTier, setPurchaseTier] = useState('')
+  const [purchaseMethod, setPurchaseMethod] = useState('')
+  const [purchaseFrom, setPurchaseFrom] = useState('')
+  const [purchaseTo, setPurchaseTo] = useState('')
+  const [exportingCsv, setExportingCsv] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [expForm, setExpForm] = useState({
     title:'', category:'server', amount:'', gstPaid:'',
@@ -174,11 +182,58 @@ export default function FinanceDashboard() {
     queryFn: () => adminAPI.financeExpenses().then(r => r.data),
     enabled: tab === 'expenses',
   })
+  const purchaseParams = {
+    page: purchasePage, limit: 20,
+    status: purchaseStatus || undefined,
+    tier: purchaseTier || undefined,
+    paymentMethod: purchaseMethod || undefined,
+    from: purchaseFrom || undefined,
+    to: purchaseTo || undefined,
+    search: purchaseSearch || undefined,
+  }
   const { data: purchaseData, isLoading: loadingPurchases } = useQuery({
-    queryKey: ['admin-purchases-finance', purchasePage, purchaseStatus],
-    queryFn: () => adminAPI.purchases({ page: purchasePage, limit: 20, status: purchaseStatus || undefined }).then(r => r.data),
+    queryKey: ['admin-purchases-finance', purchaseParams],
+    queryFn: () => adminAPI.purchases(purchaseParams).then(r => r.data),
     enabled: tab === 'purchases',
   })
+
+  const exportCsv = async () => {
+    setExportingCsv(true)
+    try {
+      const res = await adminAPI.purchases({ ...purchaseParams, page: 1, limit: 9999 })
+      const rows: any[] = res.data?.purchases || []
+      const headers = ['#','Invoice No','Buyer Name','Email','Phone','Package','Tier','Amount','Base','GST','Payment Method','Status','Date']
+      const lines = rows.map((p: any, i: number) => [
+        i + 1,
+        p.invoiceNumber || p._id,
+        `"${(p.user?.name || '').replace(/"/g, '""')}"`,
+        p.user?.email || '',
+        p.user?.phone || '',
+        `"${(p._type === 'payment' ? (p.course?.title || 'Course') : (p.packageTier || '')).replace(/"/g, '""')}"`,
+        p.packageTier || '',
+        p.totalAmount || 0,
+        p.amount || 0,
+        p.gstAmount || 0,
+        p.paymentMethod || '',
+        p.status || '',
+        new Date(p.createdAt).toLocaleDateString('en-IN'),
+      ].join(','))
+      const csv = [headers.join(','), ...lines].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `purchases_${new Date().toISOString().slice(0,10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Export failed') } finally { setExportingCsv(false) }
+  }
+
+  const resetPurchaseFilters = () => {
+    setPurchaseSearch(''); setPurchaseStatus(''); setPurchaseTier('')
+    setPurchaseMethod(''); setPurchaseFrom(''); setPurchaseTo(''); setPurchasePage(1)
+  }
+  const hasActiveFilters = purchaseSearch || purchaseStatus || purchaseTier || purchaseMethod || purchaseFrom || purchaseTo
 
   const s = overview?.summary || {}
 
@@ -797,28 +852,91 @@ export default function FinanceDashboard() {
         {tab === 'purchases' && (
           <div className="space-y-4">
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 min-w-48">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search by name or email..."
-                  value={purchaseSearch}
-                  onChange={e => setPurchaseSearch(e.target.value)}
-                  className="w-full bg-gray-900 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                />
+            <div className="bg-gray-900 border border-white/10 rounded-2xl p-4 space-y-3">
+              {/* Row 1: Search + Export */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-48">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search name, email, phone, invoice..."
+                    value={purchaseSearch}
+                    onChange={e => { setPurchaseSearch(e.target.value); setPurchasePage(1) }}
+                    className="w-full bg-gray-800 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                <button
+                  onClick={exportCsv}
+                  disabled={exportingCsv}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {exportingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                  Export CSV
+                </button>
+                {hasActiveFilters && (
+                  <button onClick={resetPurchaseFilters} className="flex items-center gap-1.5 px-3 py-2.5 bg-red-500/15 hover:bg-red-500/25 border border-red-500/25 text-red-400 text-xs font-medium rounded-xl transition-colors">
+                    <X className="w-3.5 h-3.5" /> Clear Filters
+                  </button>
+                )}
               </div>
-              <select
-                value={purchaseStatus}
-                onChange={e => { setPurchaseStatus(e.target.value); setPurchasePage(1) }}
-                className="bg-gray-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500"
-              >
-                <option value="">All Status</option>
-                <option value="paid">Paid</option>
-                <option value="created">Pending</option>
-                <option value="failed">Failed</option>
-                <option value="refunded">Refunded</option>
-              </select>
+              {/* Row 2: Dropdowns + Date Range */}
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={purchaseStatus}
+                  onChange={e => { setPurchaseStatus(e.target.value); setPurchasePage(1) }}
+                  className="bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+                >
+                  <option value="">All Status</option>
+                  <option value="paid">Paid</option>
+                  <option value="created">Pending</option>
+                  <option value="failed">Failed</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+                <select
+                  value={purchaseTier}
+                  onChange={e => { setPurchaseTier(e.target.value); setPurchasePage(1) }}
+                  className="bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+                >
+                  <option value="">All Tiers</option>
+                  <option value="basic">Basic</option>
+                  <option value="starter">Starter</option>
+                  <option value="pro">Pro</option>
+                  <option value="proedge">ProEdge</option>
+                  <option value="elite">Elite</option>
+                  <option value="supreme">Supreme</option>
+                </select>
+                <select
+                  value={purchaseMethod}
+                  onChange={e => { setPurchaseMethod(e.target.value); setPurchasePage(1) }}
+                  className="bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+                >
+                  <option value="">All Methods</option>
+                  <option value="razorpay">Razorpay</option>
+                  <option value="manual">Manual</option>
+                  <option value="upi">UPI</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                </select>
+                <div className="flex items-center gap-2 text-gray-500 text-xs">
+                  <CalendarRange className="w-3.5 h-3.5" />
+                  <input
+                    type="date"
+                    value={purchaseFrom}
+                    onChange={e => { setPurchaseFrom(e.target.value); setPurchasePage(1) }}
+                    className="bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+                  />
+                  <span>to</span>
+                  <input
+                    type="date"
+                    value={purchaseTo}
+                    onChange={e => { setPurchaseTo(e.target.value); setPurchasePage(1) }}
+                    className="bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+              {purchaseData?.total !== undefined && (
+                <p className="text-gray-600 text-xs">{purchaseData.total} record{purchaseData.total !== 1 ? 's' : ''} found</p>
+              )}
             </div>
 
             {/* Table */}
@@ -843,11 +961,6 @@ export default function FinanceDashboard() {
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {(purchaseData?.purchases || [])
-                          .filter((p: any) => {
-                            if (!purchaseSearch) return true
-                            const q = purchaseSearch.toLowerCase()
-                            return p.user?.name?.toLowerCase().includes(q) || p.user?.email?.toLowerCase().includes(q)
-                          })
                           .map((p: any) => {
                             const statusCfg: Record<string, { icon: any; cls: string }> = {
                               paid: { icon: CheckCircle2, cls: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' },
@@ -915,16 +1028,18 @@ export default function FinanceDashboard() {
                     </table>
                   </div>
                   {/* Pagination */}
-                  {purchaseData?.total > 20 && (
+                  {purchaseData?.total > 0 && (
                     <div className="flex items-center justify-between px-5 py-3 border-t border-white/10">
-                      <p className="text-gray-500 text-xs">{purchaseData.total} total purchases</p>
+                      <p className="text-gray-500 text-xs">
+                        Showing {Math.min((purchasePage - 1) * 20 + 1, purchaseData.total)}–{Math.min(purchasePage * 20, purchaseData.total)} of {purchaseData.total}
+                      </p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setPurchasePage(p => Math.max(1, p - 1))}
                           disabled={purchasePage === 1}
                           className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-400 text-xs disabled:opacity-40 hover:bg-white/10"
                         >Prev</button>
-                        <span className="px-3 py-1.5 text-gray-400 text-xs">Page {purchasePage}</span>
+                        <span className="px-3 py-1.5 text-gray-400 text-xs">Page {purchasePage} / {Math.ceil(purchaseData.total / 20)}</span>
                         <button
                           onClick={() => setPurchasePage(p => p + 1)}
                           disabled={purchasePage * 20 >= purchaseData.total}

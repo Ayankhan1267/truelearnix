@@ -26,8 +26,10 @@ const PAYMENT_STATUS_BADGE: Record<string, string> = {
 
 const TIER_BADGE: Record<string, string> = {
   free:    'bg-slate-500/20 text-slate-400',
+  basic:   'bg-teal-500/20 text-teal-400',
   starter: 'bg-blue-500/20 text-blue-400',
   pro:     'bg-purple-500/20 text-purple-400',
+  proedge: 'bg-fuchsia-500/20 text-fuchsia-400',
   elite:   'bg-amber-500/20 text-amber-400',
   supreme: 'bg-rose-500/20 text-rose-400',
 }

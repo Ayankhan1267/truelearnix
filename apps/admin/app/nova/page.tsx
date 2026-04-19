@@ -8,7 +8,7 @@ import {
   Loader2, Check, AlertCircle, Bell, Activity, Wifi, Power,
   RefreshCw, Calendar, ClipboardList, BarChart2, PhoneCall,
   UserCheck, UserX, Star, CheckSquare, Clock, ChevronRight,
-  FileText, Eye, X,
+  FileText, Eye, X, GraduationCap, Award, Briefcase,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -240,7 +240,17 @@ export default function NovaPage() {
     "Who are the top performers this month?",
     "Show pending tasks",
     "Are there any upcoming classes?",
+    "Show me webinars status",
+    "Partners overview",
+    "Mentors overview",
+    "Learners tier breakdown",
+    "Sales team performance this month",
+    "Finance overview",
+    "Pending withdrawals",
+    "KYC status",
+    "TruLance stats",
     "Generate founder report",
+    "Show CRM pipeline",
   ]
 
   const metaConfigured = typeof window !== 'undefined'
@@ -277,13 +287,17 @@ export default function NovaPage() {
       </div>
 
       {/* ── Pulse Metrics ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <PulseCard label="Today Revenue" value={fmt(pulse?.today?.revenue || 0)} sub={`${pulse?.today?.sales || 0} sales`} icon={IndianRupee} color="bg-emerald-500/10 border-emerald-500/20 text-emerald-300" />
-        <PulseCard label="Month Revenue" value={fmt(pulse?.month?.revenue || 0)} sub={`${pulse?.month?.sales || 0} sales`} icon={TrendingUp} color="bg-blue-500/10 border-blue-500/20 text-blue-300" />
-        <PulseCard label="New Learners" value={String(pulse?.today?.newLearners || 0)} sub={`${pulse?.totalLearners || 0} total`} icon={Users} color="bg-violet-500/10 border-violet-500/20 text-violet-300" />
-        <PulseCard label="Live Classes" value={String(pulse?.liveClasses || 0)} sub="right now" icon={Video} color={pulse?.liveClasses > 0 ? "bg-red-500/10 border-red-500/30 text-red-300 animate-pulse" : "bg-gray-500/10 border-gray-500/20 text-gray-400"} />
-        <PulseCard label="Open Tickets" value={String(pulse?.openTickets || 0)} sub="support" icon={MessageSquare} color={pulse?.openTickets > 5 ? "bg-amber-500/10 border-amber-500/20 text-amber-300" : "bg-gray-500/10 border-gray-500/20 text-gray-400"} />
-        <PulseCard label="Team Reports" value={`${pulse?.employeeReports?.submitted || 0}/${pulse?.employeeReports?.total || 0}`} sub="submitted today" icon={UserCheck} color={pulse?.employeeReports?.submitted === pulse?.employeeReports?.total && pulse?.employeeReports?.total > 0 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/20 text-amber-300"} />
+      <div className="overflow-x-auto pb-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2 min-w-max xl:min-w-0">
+          <PulseCard label="Today Revenue" value={fmt(pulse?.today?.revenue || 0)} sub={`${pulse?.today?.sales || 0} sales`} icon={IndianRupee} color="bg-emerald-500/10 border-emerald-500/20 text-emerald-300" />
+          <PulseCard label="Month Revenue" value={fmt(pulse?.month?.revenue || 0)} sub={`${pulse?.month?.sales || 0} sales`} icon={TrendingUp} color="bg-blue-500/10 border-blue-500/20 text-blue-300" />
+          <PulseCard label="Learners" value={String(pulse?.today?.newLearners || 0)} sub={`+today / ${pulse?.totalLearners || 0} total`} icon={Users} color="bg-violet-500/10 border-violet-500/20 text-violet-300" />
+          <PulseCard label="Partners" value={String(pulse?.totalPartners || 0)} sub={`${pulse?.pendingCommissions?.count || 0} pending comm.`} icon={UserCheck} color="bg-cyan-500/10 border-cyan-500/20 text-cyan-300" />
+          <PulseCard label="Live Now" value={String((pulse?.liveClasses || 0) + (pulse?.liveWebinars || 0))} sub={`${pulse?.liveClasses || 0} class · ${pulse?.liveWebinars || 0} webinar`} icon={Video} color={(pulse?.liveClasses > 0 || pulse?.liveWebinars > 0) ? "bg-red-500/10 border-red-500/30 text-red-300 animate-pulse" : "bg-gray-500/10 border-gray-500/20 text-gray-400"} />
+          <PulseCard label="Hot Leads" value={String(pulse?.hotLeads || 0)} sub="CRM pipeline" icon={Activity} color={pulse?.hotLeads > 0 ? "bg-orange-500/10 border-orange-500/20 text-orange-300" : "bg-gray-500/10 border-gray-500/20 text-gray-400"} />
+          <PulseCard label="Pending" value={String((pulse?.pendingWithdrawals || 0) + (pulse?.pendingKyc || 0) + (pulse?.openTickets || 0))} sub={`${pulse?.pendingWithdrawals || 0} wd · ${pulse?.pendingKyc || 0} kyc · ${pulse?.openTickets || 0} tickets`} icon={MessageSquare} color={(pulse?.pendingWithdrawals > 0 || pulse?.pendingKyc > 0) ? "bg-amber-500/10 border-amber-500/20 text-amber-300" : "bg-gray-500/10 border-gray-500/20 text-gray-400"} />
+          <PulseCard label="Team Reports" value={`${pulse?.employeeReports?.submitted || 0}/${pulse?.employeeReports?.total || 0}`} sub="submitted today" icon={UserCheck} color={pulse?.employeeReports?.submitted === pulse?.employeeReports?.total && pulse?.employeeReports?.total > 0 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/20 text-amber-300"} />
+        </div>
       </div>
 
       {/* ── Config Panel ── */}

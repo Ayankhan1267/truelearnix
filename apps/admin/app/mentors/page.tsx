@@ -27,11 +27,13 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
 }
 
 const tierConfig: Record<string, { cls: string; gradient: string }> = {
-  starter: { cls: 'badge bg-sky-500/20 text-sky-400',     gradient: 'from-sky-500 to-cyan-500' },
-  pro:     { cls: 'badge bg-violet-500/20 text-violet-400', gradient: 'from-violet-500 to-purple-600' },
-  elite:   { cls: 'badge bg-amber-500/20 text-amber-400',  gradient: 'from-amber-500 to-orange-500' },
-  supreme: { cls: 'badge bg-rose-500/20 text-rose-400',    gradient: 'from-rose-500 to-pink-600' },
-  free:    { cls: 'badge bg-gray-500/20 text-gray-400',    gradient: 'from-gray-500 to-slate-500' },
+  free:    { cls: 'badge bg-gray-500/20 text-gray-400',      gradient: 'from-gray-500 to-slate-500' },
+  basic:   { cls: 'badge bg-teal-500/20 text-teal-400',      gradient: 'from-teal-500 to-cyan-600' },
+  starter: { cls: 'badge bg-sky-500/20 text-sky-400',        gradient: 'from-sky-500 to-cyan-500' },
+  pro:     { cls: 'badge bg-violet-500/20 text-violet-400',  gradient: 'from-violet-500 to-purple-600' },
+  proedge: { cls: 'badge bg-fuchsia-500/20 text-fuchsia-400', gradient: 'from-fuchsia-500 to-pink-600' },
+  elite:   { cls: 'badge bg-amber-500/20 text-amber-400',    gradient: 'from-amber-500 to-orange-500' },
+  supreme: { cls: 'badge bg-rose-500/20 text-rose-400',      gradient: 'from-rose-500 to-pink-600' },
 }
 
 /* Pick a gradient for avatar initials based on name */

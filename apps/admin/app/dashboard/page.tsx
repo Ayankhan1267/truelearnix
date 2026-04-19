@@ -141,9 +141,9 @@ export default function DashboardPage() {
   const { data: tasksData } = useQuery({ queryKey: ['tasks-dash'], queryFn: () => adminAPI.tasks().then(r => r.data), refetchInterval: 60000 })
 
   // ── Derived data ──────────────────────────────────────────────────────────
-  const stats = dash?.stats || {}
+  const stats = dash || {}
   const basicStats = basicDash?.stats || {}
-  const pkgDist = dash?.packageDistribution || []
+  const pkgDist = dash?.packages || []
   const recentPayments = basicDash?.recentPayments || []
 
   const liveClasses: any[] = liveClassesData?.classes || []

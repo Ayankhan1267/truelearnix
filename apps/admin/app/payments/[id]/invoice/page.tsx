@@ -201,7 +201,12 @@ export default function PaymentInvoicePage({ params }: { params: { id: string } 
             </div>
             <div style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>{user.name || '—'}</div>
             {user.email && <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '2px' }}>{user.email}</div>}
-            {user.phone && <div style={{ fontSize: '12px', color: '#6b7280' }}>{user.phone}</div>}
+            {user.phone && <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '2px' }}>{user.phone}</div>}
+            {(user.state || user.country) && (
+              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                {[user.state, user.country || 'India'].filter(Boolean).join(', ')}
+              </div>
+            )}
           </div>
 
           <div style={{ flex: 1, background: '#f8f7ff', borderRadius: '12px', padding: '16px 20px', border: '1px solid #e5e7eb' }}>

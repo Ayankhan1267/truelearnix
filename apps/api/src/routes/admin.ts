@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getDashboardStats, getAllUsers, toggleUserStatus, getPendingCourses, approveCourse, rejectCourse, getTickets, updateTicket } from '../controllers/adminController';
+import { normalizeAvatars } from '../utils/normalizeAvatar';
 import Attendance from '../models/Attendance';
 import Holiday from '../models/Holiday';
 import User from '../models/User';
@@ -413,6 +414,7 @@ router.get('/batches/:id/performance', async (req, res) => {
       LiveClass.find({ course: batch.course, status: 'ended' }).select('attendanceRecords').lean(),
       Assignment.find({ course: batch.course, isPublished: true }).select('submissions maxScore').lean(),
     ]);
+    normalizeAvatars(enrollments as any[]);
 
     const totalSessions = sessions.length;
     const totalAssignments = assignments.length;
@@ -635,23 +637,34 @@ router.put('/platform-settings', async (req, res) => {
 // Package purchases (includes old Payment records)
 router.get('/purchases', async (req, res) => {
   try {
-    const { status, tier, page = 1, limit = 20 } = req.query;
+    const { status, tier, page = 1, limit = 20, from, to, paymentMethod, search } = req.query;
     const ppFilter: any = {};
     if (status) ppFilter.status = status;
     if (tier) ppFilter.packageTier = tier;
+    if (paymentMethod) ppFilter.paymentMethod = paymentMethod;
+    if (from || to) {
+      ppFilter.createdAt = {};
+      if (from) ppFilter.createdAt.$gte = new Date(from as string);
+      if (to) { const d = new Date(to as string); d.setHours(23,59,59,999); ppFilter.createdAt.$lte = d; }
+    }
 
     const payFilter: any = {};
     if (status) payFilter.status = status;
+    if (from || to) {
+      payFilter.createdAt = {};
+      if (from) payFilter.createdAt.$gte = new Date(from as string);
+      if (to) { const d = new Date(to as string); d.setHours(23,59,59,999); payFilter.createdAt.$lte = d; }
+    }
 
     const [ppData, payData] = await Promise.all([
       PackagePurchase.find(ppFilter).populate('user', 'name email phone').sort('-createdAt').lean(),
-      tier
+      tier || paymentMethod
         ? Promise.resolve([])
         : Payment.find(payFilter).populate('user', 'name email phone').populate('course', 'title').sort('-createdAt').lean(),
     ]);
 
     // Merge both, tag with _type, sort by date
-    const merged: any[] = [
+    let merged: any[] = [
       ...ppData.map((p: any) => ({ ...p, _type: 'package' })),
       ...payData.map((p: any) => ({
         ...p,
@@ -663,9 +676,20 @@ router.get('/purchases', async (req, res) => {
       })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+    if (search) {
+      const q = (search as string).toLowerCase();
+      merged = merged.filter((p: any) =>
+        p.user?.name?.toLowerCase().includes(q) ||
+        p.user?.email?.toLowerCase().includes(q) ||
+        p.user?.phone?.includes(q) ||
+        p.invoiceNumber?.toLowerCase().includes(q)
+      );
+    }
+
     const total = merged.length;
-    const skip = (Number(page) - 1) * Number(limit);
-    const purchases = merged.slice(skip, skip + Number(limit));
+    const lim = Number(limit);
+    const skip = (Number(page) - 1) * lim;
+    const purchases = lim >= 9999 ? merged : merged.slice(skip, skip + lim);
     res.json({ success: true, purchases, total });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -674,7 +698,7 @@ router.get('/purchases', async (req, res) => {
 router.get('/purchases/:id/invoice', async (req, res) => {
   try {
     const purchase = await PackagePurchase.findById(req.params.id)
-      .populate('user', 'name email phone address')
+      .populate('user', 'name email phone state country')
       .populate('package', 'name tier description');
     if (!purchase) return res.status(404).json({ success: false, message: 'Purchase not found' });
     const settings = await PlatformSettings.findOne();
@@ -686,7 +710,7 @@ router.get('/purchases/:id/invoice', async (req, res) => {
 router.get('/payments/:id/invoice', async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id)
-      .populate('user', 'name email phone address')
+      .populate('user', 'name email phone state country')
       .populate('course', 'title description thumbnail');
     if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
     const settings = await PlatformSettings.findOne();
@@ -1234,7 +1258,7 @@ router.get('/learners', async (req, res) => {
     const { type = 'all', tier, search, page = 1, limit = 20 } = req.query as any;
     const filter: any = { role: 'student' };
     // Dynamically resolve paid tiers from Package collection
-    const allPackages = await Package.find({ isActive: true }).select('tier').lean();
+    const allPackages = await Package.find({ isActive: true }).select('tier name price').lean();
     const PAID_TIERS = [...new Set(allPackages.map((p: any) => p.tier).filter(Boolean))];
     if (tier) { filter.packageTier = tier; }
     else if (type === 'purchased') filter.packageTier = { $in: PAID_TIERS };
@@ -1275,10 +1299,12 @@ router.get('/learners/:id/brand', async (req, res) => {
   try {
     const Certificate = (await import('../models/Certificate')).default;
     const Enrollment = (await import('../models/Enrollment')).default;
-    const [user, certs, enrollments] = await Promise.all([
-      User.findById(req.params.id).select('name email avatar bio expertise socialLinks packageTier xpPoints level streak createdAt'),
+    const PackagePurchase = (await import('../models/PackagePurchase')).default;
+    const [user, certs, enrollments, purchases] = await Promise.all([
+      User.findById(req.params.id).select('name email avatar bio expertise socialLinks packageTier xpPoints level streak createdAt packagePurchasedAt packageExpiresAt isActive phone'),
       Certificate.find({ student: req.params.id }).populate('course', 'title thumbnail').sort('-issuedAt'),
-      Enrollment.find({ student: req.params.id }).populate('course', 'title thumbnail').select('course progress completedAt'),
+      Enrollment.find({ student: req.params.id }).populate('course', 'title thumbnail').select('course progress completedAt progressPercent'),
+      PackagePurchase.find({ user: req.params.id, status: 'paid' }).populate('package', 'name tier price').sort('-createdAt').limit(5),
     ]);
     if (!user) return res.status(404).json({ success: false, message: 'Learner not found' });
     const completeness = {
@@ -1289,7 +1315,7 @@ router.get('/learners/:id/brand', async (req, res) => {
       certificate: certs.length > 0,
     };
     const pct = Math.round((Object.values(completeness).filter(Boolean).length / 5) * 100);
-    res.json({ success: true, user, certs, enrollments, completeness, pct });
+    res.json({ success: true, user, certs, enrollments, completeness, pct, purchases });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -1342,16 +1368,17 @@ router.delete('/jobs/:id', async (req, res) => {
 
 // ── Reports ────────────────────────────────────────────────────────────────────
 
-// GET /admin/reports/commission?from=&to=
+// GET /admin/reports/commission?from=&to=&status=&search=
 router.get('/reports/commission', async (req, res) => {
   try {
-    const { from, to } = req.query as any;
+    const { from, to, status, search } = req.query as any;
     const dateFilter: any = {};
     if (from || to) {
       dateFilter.createdAt = {};
       if (from) dateFilter.createdAt.$gte = new Date(from);
       if (to) dateFilter.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59));
     }
+    if (status) dateFilter.status = status;
     const rows = await Commission.aggregate([
       { $match: { ...dateFilter } },
       { $lookup: { from: 'users', localField: 'earner', foreignField: '_id', as: 'earner' } },
@@ -1366,26 +1393,28 @@ router.get('/reports/commission', async (req, res) => {
       }},
       { $sort: { createdAt: -1 } },
     ]);
-    const summary = rows.reduce((acc: any, r: any) => ({
+    const filtered = search ? rows.filter((r: any) => r.earnerName?.toLowerCase().includes(search.toLowerCase()) || r.earnerEmail?.toLowerCase().includes(search.toLowerCase())) : rows;
+    const summary = filtered.reduce((acc: any, r: any) => ({
       totalCommission: acc.totalCommission + r.commissionAmount,
       totalTds: acc.totalTds + r.tds,
       totalNet: acc.totalNet + r.net,
       count: acc.count + 1,
     }), { totalCommission: 0, totalTds: 0, totalNet: 0, count: 0 });
-    res.json({ success: true, rows, summary });
+    res.json({ success: true, rows: filtered, summary });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// GET /admin/reports/sales?from=&to=
+// GET /admin/reports/sales?from=&to=&tier=
 router.get('/reports/sales', async (req, res) => {
   try {
-    const { from, to } = req.query as any;
+    const { from, to, tier } = req.query as any;
     const dateFilter: any = { status: 'paid' };
     if (from || to) {
       dateFilter.createdAt = {};
       if (from) dateFilter.createdAt.$gte = new Date(from);
       if (to) dateFilter.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59));
     }
+    if (tier) dateFilter.packageTier = tier;
     const [rows, byTier] = await Promise.all([
       PackagePurchase.find(dateFilter).populate('user', 'name email phone').sort('-createdAt').lean(),
       PackagePurchase.aggregate([
@@ -1450,33 +1479,44 @@ router.get('/reports/performance', async (req, res) => {
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// GET /admin/reports/team
+// GET /admin/reports/team?dept=&role=&status=
 router.get('/reports/team', async (req, res) => {
   try {
+    const { dept, role, status } = req.query as any;
+    const filter: any = { role: { $in: ['admin', 'manager', 'employee', 'salesperson', 'department_head', 'team_lead'] } };
+    if (dept) filter.department = dept;
+    if (role) filter.role = role;
+    if (status === 'active') filter.isActive = true;
+    if (status === 'inactive') filter.isActive = false;
     const [employees, byDept] = await Promise.all([
-      User.find({ role: { $in: ['admin', 'manager', 'employee'] } })
+      User.find(filter)
         .select('name email phone role department employeeId joiningDate permissions isActive createdAt')
         .sort('department name').lean(),
       User.aggregate([
-        { $match: { role: { $in: ['admin', 'manager', 'employee'] } } },
+        { $match: { role: { $in: ['admin', 'manager', 'employee', 'salesperson', 'department_head', 'team_lead'] } } },
         { $group: { _id: '$department', count: { $sum: 1 }, active: { $sum: { $cond: ['$isActive', 1, 0] } } } },
         { $sort: { count: -1 } }
       ])
     ]);
+    normalizeAvatars(employees as any[]);
     res.json({ success: true, employees, byDept, total: employees.length });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// GET /admin/reports/learners?from=&to=
+// GET /admin/reports/learners?from=&to=&tier=&status=&search=
 router.get('/reports/learners', async (req, res) => {
   try {
-    const { from, to } = req.query as any;
+    const { from, to, tier, status, search } = req.query as any;
     const dateFilter: any = { role: 'student' };
     if (from || to) {
       dateFilter.createdAt = {};
       if (from) dateFilter.createdAt.$gte = new Date(from);
       if (to) dateFilter.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59));
     }
+    if (tier) dateFilter.packageTier = tier;
+    if (status === 'active') dateFilter.isActive = true;
+    if (status === 'inactive') dateFilter.isActive = false;
+    if (search) dateFilter.$or = [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }, { phone: { $regex: search, $options: 'i' } }];
     const [learners, byTier, byMonth] = await Promise.all([
       User.find(dateFilter).select('name email phone packageTier xp level isActive createdAt').sort('-createdAt').limit(500).lean(),
       User.aggregate([
@@ -2017,6 +2057,7 @@ router.get('/kyc', protect, async (req: any, res) => {
         .sort('-kyc.submittedAt').skip((pg - 1) * 20).limit(20).lean(),
       User.countDocuments(filter),
     ]);
+    normalizeAvatars(users as any[]);
     const counts = await User.aggregate([
       { $match: { isAffiliate: true, 'kyc.status': { $in: ['submitted', 'verified', 'rejected', 'pending'] } } },
       { $group: { _id: '$kyc.status', count: { $sum: 1 } } },
@@ -2594,6 +2635,7 @@ router.get('/attendance/summary', async (req: any, res) => {
         ? { role: { $in: ['admin', 'manager', 'salesperson'] }, isActive: true }
         : { role: 'mentor', isActive: true, $or: [{ mentorStatus: 'approved' }, { mentorStatus: { $exists: false } }, { mentorStatus: null }] }
     ).select('name email employeeId department role avatar').lean();
+    normalizeAvatars(users as any[]);
 
     const { workingDays, holidayDays } = await getWorkingDays(month, year);
 
