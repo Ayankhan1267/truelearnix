@@ -1093,6 +1093,70 @@ router.post('/employees', async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// ── Employee Performance ──────────────────────────────────────────────────────
+router.get('/employees/:id/performance', async (req, res) => {
+  try {
+    const Attendance = (await import('../models/Attendance')).default;
+    const Task       = (await import('../models/Task')).default;
+    const Goal       = (await import('../models/Goal')).default;
+
+    const emp = await User.findById(req.params.id).select('-password');
+    if (!emp) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+
+    // Current month attendance
+    const attendance = await Attendance.find({ user: emp._id, month, year });
+    const attStats = { present: 0, absent: 0, halfDay: 0, leave: 0, total: attendance.length };
+    for (const a of attendance) {
+      if (a.status === 'present')   attStats.present++;
+      else if (a.status === 'absent')   attStats.absent++;
+      else if (a.status === 'half-day') attStats.halfDay++;
+      else if (a.status === 'leave')    attStats.leave++;
+    }
+    const attPct = attStats.total > 0 ? Math.round(((attStats.present + attStats.halfDay * 0.5) / attStats.total) * 100) : 0;
+
+    // Last 3 months attendance trend
+    const trend = [];
+    for (let i = 2; i >= 0; i--) {
+      const d = new Date(year, month - 1 - i, 1);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      const recs = await Attendance.find({ user: emp._id, month: m, year: y });
+      const p = recs.filter(r => r.status === 'present').length;
+      const h = recs.filter(r => r.status === 'half-day').length;
+      const total = recs.length;
+      trend.push({ month: m, year: y, present: p, halfDay: h, absent: recs.filter(r => r.status === 'absent').length, total, pct: total > 0 ? Math.round(((p + h * 0.5) / total) * 100) : 0 });
+    }
+
+    // Tasks
+    const tasks = await Task.find({ assignedTo: emp._id }).sort({ createdAt: -1 });
+    const taskStats = { todo: 0, inProgress: 0, review: 0, done: 0, total: tasks.length };
+    for (const t of tasks) {
+      if (t.status === 'todo')        taskStats.todo++;
+      else if (t.status === 'in-progress') taskStats.inProgress++;
+      else if (t.status === 'review')      taskStats.review++;
+      else if (t.status === 'done')        taskStats.done++;
+    }
+    const completionPct = taskStats.total > 0 ? Math.round((taskStats.done / taskStats.total) * 100) : 0;
+    const recentTasks = tasks.slice(0, 8);
+
+    // Goals
+    const goals = await Goal.find({ owner: emp._id }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      employee: emp,
+      attendance: { ...attStats, pct: attPct, month, year },
+      attendanceTrend: trend,
+      tasks: { ...taskStats, completionPct, recent: recentTasks },
+      goals,
+    });
+  } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 router.patch('/employees/:id/permissions', async (req, res) => {
   try {
     const { permissions } = req.body;

@@ -246,6 +246,7 @@ export const adminAPI = {
   createPartnerManager: (data: any) => api.post('/admin/partner-managers', data),
   updateEmployee: (id: string, data: any) => api.patch(`/admin/employees/${id}`, data),
   deleteEmployee: (id: string) => api.delete(`/admin/employees/${id}`),
+  employeePerformance: (id: string) => api.get(`/admin/employees/${id}/performance`),
   // Learners
   learners: (params?: any) => api.get('/admin/learners', { params }),
   learnerBrand: (id: string) => api.get(`/admin/learners/${id}/brand`),

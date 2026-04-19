@@ -4,10 +4,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminAPI } from '@/lib/api'
 import AdminLayout from '@/components/AdminLayout'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 import {
   Users, UserPlus, Search, Shield, Briefcase, Headphones,
   TrendingUp, FileText, DollarSign, Settings, Code2, UserCheck,
-  UserX, Trash2, X, Eye, EyeOff, Mail, Phone, Lock, ChevronDown,
+  UserX, Trash2, X, Eye, EyeOff, Mail, Phone, Lock, ChevronDown, BarChart2 as BarChart2Icon,
   LayoutDashboard, BarChart2, Package, Contact, BookOpen, Video,
   LifeBuoy, Bell, Tag, Layers, PanelTop, Kanban, Target,
   MousePointerClick, FolderOpen, Trophy, Zap, GraduationCap,
@@ -151,6 +152,7 @@ function getRole(val: string) { return ROLES.find(r => r.value === val) || ROLES
 
 export default function EmployeesPage() {
   const qc = useQueryClient()
+  const router = useRouter()
   const [search, setSearch]         = useState('')
   const [deptFilter, setDeptFilter] = useState('')
   const [page, setPage]             = useState(1)
@@ -383,6 +385,11 @@ export default function EmployeesPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1.5">
+                            <button onClick={() => router.push(`/employees/${emp._id}`)}
+                              title="View Performance"
+                              className="p-1.5 rounded-lg text-violet-400 hover:bg-violet-500/10 transition-colors">
+                              <BarChart2Icon className="w-4 h-4" />
+                            </button>
                             <button onClick={() => toggleActive(emp._id, emp.isActive, emp.name)} disabled={togglingId === emp._id}
                               title={emp.isActive ? 'Deactivate' : 'Activate'}
                               className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 ${emp.isActive ? 'text-red-400 hover:bg-red-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>
