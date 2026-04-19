@@ -87,7 +87,7 @@ export default function AffiliatePage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-white">Partner Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Your affiliate earnings and network</p>
+          <p className="text-gray-500 text-sm mt-0.5">Your partner earnings and network</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-2xl text-white text-sm font-bold" style={{ background: tierCfg.grad, boxShadow: `0 4px 20px ${tierCfg.glow}` }}>
           <Award className="w-4 h-4" /> {tier.charAt(0).toUpperCase() + tier.slice(1)} — {stats?.commissionRate || (user as any)?.commissionRate}% Rate

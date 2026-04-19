@@ -370,10 +370,10 @@ export default function NewOrderPage() {
               </div>
             )}
 
-            {/* Affiliate code info */}
+            {/* Partner code info */}
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/5 border border-blue-500/15">
               <Sparkles className="w-4 h-4 text-blue-400 flex-shrink-0" />
-              <p className="text-xs text-gray-400">Your affiliate code <span className="text-blue-300 font-mono font-bold">{user?.affiliateCode}</span> will be applied automatically.</p>
+              <p className="text-xs text-gray-400">Your partner code <span className="text-blue-300 font-mono font-bold">{user?.affiliateCode}</span> will be applied automatically.</p>
             </div>
 
             {/* Notes */}

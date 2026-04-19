@@ -70,7 +70,7 @@ export default function StudentSidebar({ onClose }: { onClose?: () => void }) {
             {item.label}
           </Link>
         ))}
-        {/* Affiliate — gated */}
+        {/* Partner — gated */}
         <Link href="/student/affiliate"
           className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
             pathname === '/student/affiliate' ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30' :

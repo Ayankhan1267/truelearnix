@@ -875,7 +875,7 @@ export default function PartnerDashboard() {
               </div>
             </div>
 
-            {/* Affiliate code box */}
+            {/* Partner code box */}
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               <div style={{
                 background:'rgba(0,0,0,0.5)', backdropFilter:'blur(16px)',

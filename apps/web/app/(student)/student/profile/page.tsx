@@ -263,7 +263,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Affiliate Code Card (if partner) ── */}
+      {/* ── Partner Code Card (if partner) ── */}
       {isPartner && user?.affiliateCode && (
         <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(91,33,182,0.3) 0%, rgba(49,46,129,0.2) 100%)', border: '1px solid rgba(139,92,246,0.4)' }}>
           <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(139,92,246,0.2)' }} />

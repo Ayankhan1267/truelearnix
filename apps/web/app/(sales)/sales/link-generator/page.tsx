@@ -86,7 +86,7 @@ export default function SalesLinkGeneratorPage() {
         </div>
       </div>
 
-      {/* ── Affiliate Code Card ── */}
+      {/* ── Partner Code Card ── */}
       <div className="relative overflow-hidden rounded-2xl p-5 sm:p-6"
         style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.4) 0%, rgba(37,99,235,0.3) 50%, rgba(6,182,212,0.2) 100%)', border: '1px solid rgba(99,102,241,0.35)' }}>
         <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />

@@ -383,7 +383,7 @@ export default function MTypePage() {
         ))}
       </div>
 
-      {/* ── Affiliate Code Card ── */}
+      {/* ── Partner Code Card ── */}
       <div className="relative overflow-hidden rounded-2xl border border-violet-500/25 bg-dark-800">
         <div className="absolute inset-0 bg-gradient-to-r from-violet-600/8 to-purple-600/5" />
         <div className="relative p-4 sm:p-5">
