@@ -1,8 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import hpp from 'hpp';
@@ -54,8 +56,6 @@ import salesRouter from './routes/sales';
 import jobsRouter from './routes/jobs';
 import announcementsRouter from './routes/announcements';
 import securityMonitor, { loadBlockedIpCache } from './middleware/securityMonitor';
-
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
