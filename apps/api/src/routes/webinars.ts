@@ -296,11 +296,12 @@ router.patch('/:id/end', protect, authorize('superadmin', 'admin', 'manager'), a
     if (!webinar) return res.status(404).json({ success: false, message: 'Not found' });
 
     // Stop egress recording if running
+    const recordingFileName = webinar.recordingFileName;
     if (webinar.egressId) {
       try {
         const client = getEgressClient();
         await client.stopEgress(webinar.egressId);
-        webinar.recordingUrl = `/uploads/recordings/${webinar.recordingFileName}`;
+        webinar.recordingUrl = `/uploads/recordings/${recordingFileName}`;
         webinar.egressId = undefined;
       } catch (egressErr) {
         console.warn('Egress stop failed:', egressErr);
@@ -315,6 +316,23 @@ router.patch('/:id/end', protect, authorize('superadmin', 'admin', 'manager'), a
     webinar.status = 'ended';
     webinar.endedAt = new Date();
     await webinar.save();
+
+    // Background: upload recording to R2 after LiveKit finalizes the file
+    if (recordingFileName) {
+      const webinarId = webinar._id?.toString();
+      setTimeout(async () => {
+        try {
+          const { uploadRecordingToR2 } = await import('../services/s3Service');
+          const result = await uploadRecordingToR2(recordingFileName);
+          if (result) {
+            await Webinar.findByIdAndUpdate(webinarId, { recordingUrl: result.url, recordingSize: result.size });
+            console.log(`[R2] Webinar recording updated in DB: ${result.url}`);
+          }
+        } catch (e) {
+          console.warn('[R2] Webinar recording upload failed:', e);
+        }
+      }, 30000);
+    }
 
     res.json({ success: true, webinar });
   } catch (e: any) { res.status(500).json({ success: false, message: e.message }); }

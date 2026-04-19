@@ -185,7 +185,8 @@ const stopClassEgress = async (cls: any) => {
   } catch (e) {
     console.warn('stopEgress failed (may already be stopped):', e);
   }
-  const recordingUrl = `/uploads/recordings/${(cls as any).recordingFileName}`;
+  const fileName = (cls as any).recordingFileName;
+  const recordingUrl = `/uploads/recordings/${fileName}`;
   cls.recordingUrl = recordingUrl;
   cls.recordingSize = undefined;
   (cls as any).egressId = null;
@@ -202,6 +203,33 @@ const stopClassEgress = async (cls: any) => {
       console.warn('Failed to link recording to lesson:', linkErr);
     }
   }
+
+  // Background: upload to R2 after LiveKit finalizes the file (~30s delay)
+  const classId = cls._id?.toString();
+  const lessonId = (cls as any).lessonId;
+  const courseId = cls.course;
+  setTimeout(async () => {
+    try {
+      const { uploadRecordingToR2 } = await import('../services/s3Service');
+      const result = await uploadRecordingToR2(fileName);
+      if (result) {
+        const update: any = { recordingUrl: result.url, recordingSize: result.size };
+        await LiveClass.findByIdAndUpdate(classId, update);
+        // Update lesson videoUrl to R2 URL too
+        if (lessonId && courseId) {
+          await Course.updateOne(
+            { _id: courseId, 'modules.lessons._id': lessonId },
+            { $set: { 'modules.$[].lessons.$[l].videoUrl': result.url } },
+            { arrayFilters: [{ 'l._id': lessonId }] }
+          ).catch(() => {});
+        }
+        console.log(`[R2] Class recording updated in DB: ${result.url}`);
+      }
+    } catch (e) {
+      console.warn('[R2] Class recording upload failed:', e);
+    }
+  }, 30000);
+
   return recordingUrl;
 };
 
