@@ -1058,7 +1058,7 @@ const DEFAULT_DEPT_PERMISSIONS: Record<string, string[]> = {
 router.get('/employees', async (req, res) => {
   try {
     const { department, search, page = 1, limit = 20 } = req.query as any;
-    const filter: any = { role: { $in: ['superadmin', 'admin', 'manager'] } };
+    const filter: any = { role: { $in: ['superadmin', 'admin', 'manager', 'department_head', 'team_lead', 'employee'] } };
     if (department) filter.department = department;
     if (search) filter.$or = [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
     const skip = (parseInt(page) - 1) * parseInt(limit);
